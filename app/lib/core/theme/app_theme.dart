@@ -1,3 +1,5 @@
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -13,6 +15,26 @@ class AppTheme {
   static ThemeData get light => _build(AppColorsExtension.light);
 
   static const _calmOverlay = WidgetStatePropertyAll<Color>(Color(0x0D000000));
+
+  static PageTransitionsTheme _pageTransitionsTheme() {
+    if (kIsWeb) {
+      return const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.linux: FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.macOS: FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
+        },
+      );
+    }
+    return const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      },
+    );
+  }
 
   static ThemeData _build(AppColorsExtension c) {
     final isDark = identical(c, AppColorsExtension.dark);
@@ -341,12 +363,7 @@ class AppTheme {
           borderRadius: BorderRadius.circular(AppRadius.md),
         ),
       ),
-      pageTransitionsTheme: const PageTransitionsTheme(
-        builders: {
-          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-        },
-      ),
+      pageTransitionsTheme: _pageTransitionsTheme(),
     );
   }
 }
