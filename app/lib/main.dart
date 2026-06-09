@@ -1,5 +1,4 @@
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -9,24 +8,9 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:provider/provider.dart' as provider;
 
-import 'package:supabase_flutter/supabase_flutter.dart';
-
-import 'firebase_options.dart';
-
 import 'providers/app_state.dart';
 
-import 'services/backend_config.dart';
-
-import 'services/firebase_service.dart';
-
-import 'services/notification_service.dart';
-
-import 'services/plan_agent_service.dart';
-
-import 'services/subscription_service.dart';
-
-import 'services/supabase_service.dart';
-
+import 'services/startup_service.dart';
 import 'services/sync_service.dart';
 
 import 'theme/app_theme.dart';
@@ -56,70 +40,22 @@ import 'screens/feed_screen.dart';
 
 
 Future<void> main() async {
-
   WidgetsFlutterBinding.ensureInitialized();
 
-  await dotenv.load(fileName: '.env');
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    debugPrint('FlutterError: ${details.exceptionAsString()}');
+  };
 
-
-
-  if (BackendConfig.hasFirebase) {
-
-    final options = DefaultFirebaseOptions.currentPlatform;
-
-    if (options != null) {
-
-      await Firebase.initializeApp(options: options);
-
-      await FirebaseService.enableOfflineSync();
-
-      if (kReleaseMode) {
-        FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
-        PlatformDispatcher.instance.onError = (error, stack) {
-          FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-          return true;
-        };
-      }
-
-    }
-
-    if (FirebaseService.currentUser != null) {
-
-      PlanAgentService.generateWeeklyPlanIfNeeded();
-
-    }
-
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (e) {
+    debugPrint('dotenv load failed: $e');
   }
 
-
-
-  if (BackendConfig.hasSupabase) {
-
-    await Supabase.initialize(
-
-      url: BackendConfig.supabaseUrl!,
-
-      anonKey: BackendConfig.supabaseAnonKey!,
-
-    );
-
-    if (!BackendConfig.hasFirebase && SupabaseService.currentUser != null) {
-
-      PlanAgentService.generateWeeklyPlanIfNeeded();
-
-    }
-
-  }
-
-
-
-  await SubscriptionService.init();
-
-  await NotificationService.init();
-
+  await StartupService.initFirebase();
+  await StartupService.initSupabase();
   await SyncService.startListening();
-
-
 
   applySystemChrome(ThemeMode.system, WidgetsBinding.instance.platformDispatcher.platformBrightness);
 
@@ -129,6 +65,9 @@ Future<void> main() async {
     ),
   );
 
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(StartupService.runDeferredStartup());
+  });
 }
 
 

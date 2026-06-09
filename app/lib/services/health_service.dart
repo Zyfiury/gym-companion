@@ -3,10 +3,19 @@ import 'package:health/health.dart';
 class HealthService {
   static final _health = Health();
 
-  static Future<bool> requestPermissions() async {
-    final types = [HealthDataType.STEPS, HealthDataType.WEIGHT, HealthDataType.ACTIVE_ENERGY_BURNED];
+  static const _types = [HealthDataType.STEPS, HealthDataType.WEIGHT, HealthDataType.ACTIVE_ENERGY_BURNED];
+
+  static Future<bool> hasPermissions() async {
     try {
-      return await _health.requestAuthorization(types);
+      return await _health.hasPermissions(_types) ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<bool> requestPermissions() async {
+    try {
+      return await _health.requestAuthorization(_types);
     } catch (_) {
       return false;
     }

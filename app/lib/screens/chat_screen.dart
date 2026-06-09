@@ -135,16 +135,27 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               remaining: state.freeMessagesRemaining,
               hasUserMessages: state.chatMessages.any((m) => m.role == 'user'),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
           ],
           Expanded(
-            child: ListView.builder(
-              controller: _scroll,
-              reverse: true,
-              padding: EdgeInsets.fromLTRB(widget.embedded ? 0 : 20, 4, widget.embedded ? 0 : 20, 8),
-              itemCount: _listItemCount(state, showWelcome),
-              itemBuilder: (_, i) => _buildListItem(context, state, i, showWelcome),
-            ),
+            child: showWelcome
+                ? SingleChildScrollView(
+                    padding: EdgeInsets.fromLTRB(widget.embedded ? 0 : 20, 4, widget.embedded ? 0 : 20, 8),
+                    child: StaggeredEntry(
+                      index: 1,
+                      child: _WelcomeAndSuggestionsCard(
+                        suggestions: _suggestions,
+                        onTap: (t) => _send(state, t),
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    controller: _scroll,
+                    reverse: true,
+                    padding: EdgeInsets.fromLTRB(widget.embedded ? 0 : 20, 4, widget.embedded ? 0 : 20, 8),
+                    itemCount: _listItemCount(state),
+                    itemBuilder: (_, i) => _buildListItem(context, state, i),
+                  ),
           ),
           if (_listening && _voiceText.isNotEmpty)
             Padding(
@@ -159,7 +170,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 ],
               ),
             ),
-          _PlanChips(onTap: (t) => _send(state, t)),
           _CoachContextPicker(period: state.coachContextPeriod, onChanged: state.setCoachContextPeriod),
           _InputDock(
             embedded: widget.embedded,
@@ -183,13 +193,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     return Scaffold(backgroundColor: t.scaffold, body: chatBody);
   }
 
-  int _listItemCount(AppState state, bool showWelcome) {
-    var count = state.chatMessages.length + (state.chatTyping ? 1 : 0);
-    if (showWelcome) count += 2; // welcome card + suggestions grid
-    return count;
+  int _listItemCount(AppState state) {
+    return state.chatMessages.length + (state.chatTyping ? 1 : 0);
   }
 
-  Widget _buildListItem(BuildContext context, AppState state, int i, bool showWelcome) {
+  Widget _buildListItem(BuildContext context, AppState state, int i) {
     var offset = 0;
     if (state.chatTyping) {
       if (i == 0) return _typingBubble();
@@ -206,14 +214,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       return _messageBubble(context, state, m, msgIndex, isUser, isLast);
     }
 
-    if (!showWelcome) return const SizedBox.shrink();
-    final welcomeIdx = fromBottom - msgs.length;
-    if (welcomeIdx == 0) {
-      return StaggeredEntry(index: 2, child: _SuggestionGrid(suggestions: _suggestions, onTap: (t) => _send(state, t)));
-    }
-    if (welcomeIdx == 1) {
-      return StaggeredEntry(index: 1, child: _WelcomeCard());
-    }
     return const SizedBox.shrink();
   }
 
@@ -508,7 +508,7 @@ class _CoachHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.appTheme;
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: t.card,
         borderRadius: BorderRadius.circular(20),
@@ -517,14 +517,23 @@ class _CoachHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const CoachAvatar(size: 50, pulse: true),
-          const SizedBox(width: 14),
+          const CoachAvatar(size: 40),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text('AI Coach', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: t.textPrimary)),
-                Text('Level $level · Your personal trainer', style: TextStyle(fontSize: 12, color: t.textSecondary)),
+                Text(
+                  'AI Coach',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, height: 1.1, color: t.textPrimary),
+                ),
+                Text(
+                  'Level $level · Your personal trainer',
+                  style: TextStyle(fontSize: 12, height: 1.2, color: t.textSecondary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
             ),
           ),
@@ -594,7 +603,7 @@ class _CoachContextPicker extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.appTheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Row(
         children: [
           Expanded(
@@ -617,12 +626,16 @@ class _CoachContextPicker extends StatelessWidget {
   }
 }
 
-class _WelcomeCard extends StatelessWidget {
+class _WelcomeAndSuggestionsCard extends StatelessWidget {
+  final List<({IconData icon, String text})> suggestions;
+  final ValueChanged<String> onTap;
+
+  const _WelcomeAndSuggestionsCard({required this.suggestions, required this.onTap});
+
   @override
   Widget build(BuildContext context) {
     final t = context.appTheme;
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -645,84 +658,45 @@ class _WelcomeCard extends StatelessWidget {
             'I can plan workouts, swap meals, log food, find delivery nearby, and track your progress — just ask.',
             style: TextStyle(fontSize: 13, color: t.textSecondary, height: 1.4),
           ),
+          const SizedBox(height: 16),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final chipW = (constraints.maxWidth - 8) / 2;
+              return Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: suggestions.map((s) {
+                  return PressableScale(
+                    onTap: () => onTap(s.text),
+                    child: Container(
+                      width: chipW,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: t.card,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: t.borderSubtle),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(s.icon, size: 16, color: AppColors.accent),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              s.text,
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: t.textPrimary),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
         ],
-      ),
-    );
-  }
-}
-
-class _SuggestionGrid extends StatelessWidget {
-  final List<({IconData icon, String text})> suggestions;
-  final ValueChanged<String> onTap;
-
-  const _SuggestionGrid({required this.suggestions, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.appTheme;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: LayoutBuilder(builder: (context, constraints) {
-        final chipW = (constraints.maxWidth - 8) / 2;
-        return Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: suggestions.map((s) {
-          return PressableScale(
-            onTap: () => onTap(s.text),
-            child: Container(
-              width: chipW,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: t.card,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: t.borderSubtle),
-              ),
-              child: Row(
-                children: [
-                  Icon(s.icon, size: 16, color: AppColors.accent),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(s.text, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: t.textPrimary), maxLines: 2, overflow: TextOverflow.ellipsis),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }).toList(),
-      );
-      }),
-    );
-  }
-}
-
-class _PlanChips extends StatelessWidget {
-  final ValueChanged<String> onTap;
-  const _PlanChips({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.appTheme;
-    const plans = ['Plan for 1 day', 'Plan for 1 week', 'Plan for 1 month'];
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: plans.map((p) => Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Semantics(
-                  identifier: 'chat-plan-${p.split(' ').last}',
-                  button: true,
-                  child: ActionChip(
-                    label: Text(p.replaceAll('Plan for ', ''), style: const TextStyle(fontSize: 12)),
-                    backgroundColor: t.elevated,
-                    side: BorderSide(color: t.borderSubtle),
-                    onPressed: () => onTap(p),
-                  ),
-                ),
-              )).toList(),
-        ),
       ),
     );
   }

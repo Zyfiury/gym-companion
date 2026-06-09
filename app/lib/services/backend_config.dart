@@ -25,6 +25,11 @@ class BackendConfig {
     return v == 'true' || v == '1';
   }
 
+  static bool get allowSideloadTester {
+    final v = (dotenv.env['ALLOW_SIDELOAD_TESTER'] ?? '').trim().toLowerCase();
+    return v == 'true' || v == '1';
+  }
+
   static bool get hasFirebase {
     final projectId = (dotenv.env['FIREBASE_PROJECT_ID'] ?? '').trim();
     final apiKey = (dotenv.env['FIREBASE_API_KEY'] ?? '').trim();

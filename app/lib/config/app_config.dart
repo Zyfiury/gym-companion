@@ -1,3 +1,4 @@
+import '../services/backend_config.dart';
 import 'package:flutter/foundation.dart';
 
 /// Production vs development configuration.
@@ -5,8 +6,8 @@ class AppConfig {
   static const appName = 'Gym Companion';
   static const version = '1.0.0';
 
-  /// Test accounts only visible in debug/profile builds.
-  static bool get showTestAccounts => !kReleaseMode;
+  /// Test accounts visible in debug/profile and sideload tester builds.
+  static bool get showTestAccounts => !kReleaseMode || BackendConfig.allowSideloadTester;
 
   /// Social login requires Firebase.
   static bool get showSocialLogin => true;

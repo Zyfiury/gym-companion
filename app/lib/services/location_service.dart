@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart' as ph;
 
@@ -40,14 +39,6 @@ class LocationResolveResult {
 }
 
 class LocationService {
-  /// Demo coords (London) when GPS unavailable in debug — UK app defaults.
-  static const demoLocation = UserLocation(
-    latitude: 51.5074,
-    longitude: -0.1278,
-    label: 'London (demo)',
-    isDemoFallback: true,
-  );
-
   static Future<bool> isServiceEnabled() => Geolocator.isLocationServiceEnabled();
 
   static Future<LocationPermission> _currentPermission() => Geolocator.checkPermission();
@@ -108,29 +99,26 @@ class LocationService {
       );
     }
 
-    if (kDebugMode) {
-      return LocationResolveResult(
-        status: LocationAccessResult.granted,
-        location: demoLocation,
-        message: 'Using demo location (set mock GPS on emulator for real results).',
-      );
-    }
-
     return const LocationResolveResult(
       status: LocationAccessResult.positionUnavailable,
-      message: 'Could not get GPS fix. Move outdoors or set a mock location, then try again.',
+      message: 'Could not get GPS fix. Turn on location, go outdoors or near a window, then try again.',
     );
   }
 
   static Future<UserLocation?> _readPosition() async {
     try {
-      Position? pos = await Geolocator.getLastKnownPosition();
-      pos ??= await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.low,
-          timeLimit: Duration(seconds: 8),
-        ),
-      );
+      Position? pos;
+      try {
+        pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium,
+            timeLimit: Duration(seconds: 15),
+          ),
+        );
+      } catch (_) {
+        pos = await Geolocator.getLastKnownPosition();
+      }
+      if (pos == null) return null;
       return UserLocation(latitude: pos.latitude, longitude: pos.longitude);
     } catch (_) {
       return null;

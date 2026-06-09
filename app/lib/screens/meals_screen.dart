@@ -27,7 +27,6 @@ class MealsScreen extends StatefulWidget {
 class _MealsScreenState extends State<MealsScreen> {
   int openMeal = 0;
   _PlanView planView = _PlanView.day;
-  bool deliveryOpen = false;
   bool shopOpen = false;
   String? _videoId;
   String? _videoThumb;
@@ -278,13 +277,10 @@ class _MealsScreenState extends State<MealsScreen> {
               ),
             ),
           ),
-          if (state.user!.nutritionMode != 'cook_myself') ...[
-            const SizedBox(height: 14),
-            StaggeredEntry(
-              index: 1,
-              child: NutritionModePanel(user: state.user!),
-            ),
-          ],
+          StaggeredEntry(
+            index: 1,
+            child: NutritionModePanel(user: state.user!),
+          ),
           const SizedBox(height: 14),
           if (planView == _PlanView.day)
             StaggeredEntry(
@@ -580,20 +576,6 @@ class _MealsScreenState extends State<MealsScreen> {
             ),
           ],
           ],
-          if (plan.deliveryOptions != null && plan.deliveryOptions!.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            StaggeredEntry(
-              index: 4,
-              child: _ExpandSection(
-                icon: Icons.delivery_dining_outlined,
-                title: 'Delivery nearby',
-                subtitle: '${plan.deliveryOptions!.length} options · suggested dishes, est. macros',
-                open: deliveryOpen,
-                onToggle: (v) => setState(() => deliveryOpen = v),
-                children: plan.deliveryOptions!.map((opt) => _DeliveryRow(opt: opt)).toList(),
-              ),
-            ),
-          ],
           if (shoppingList != null) ...[
             const SizedBox(height: 12),
             StaggeredEntry(
@@ -769,40 +751,6 @@ class _ExpandSection extends StatelessWidget {
           subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: context.appTheme.textSecondary)),
           children: children,
         ),
-      ),
-    );
-  }
-}
-
-class _DeliveryRow extends StatelessWidget {
-  final Map<String, dynamic> opt;
-  const _DeliveryRow({required this.opt});
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.appTheme;
-    return ListTile(
-      dense: true,
-      title: Text(opt['restaurant'] as String? ?? '', style: TextStyle(fontWeight: FontWeight.w600, color: t.textPrimary)),
-      subtitle: Text(
-        opt['macrosEstimated'] == true
-            ? 'Suggested: ${opt['dish']} — ${opt['macros']} (est.)'
-            : opt['nutritionSource'] != null
-                ? '${opt['dish']} — ${opt['macros']} (${opt['nutritionSource']})'
-            : '${opt['dish']} — ${opt['macros']}',
-        style: TextStyle(fontSize: 12, color: t.textSecondary),
-      ),
-      trailing: PopupMenuButton<String>(
-        icon: Icon(Icons.open_in_new, size: 18, color: AppColors.accent),
-        onSelected: (url) async {
-          final uri = Uri.parse(url);
-          if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
-        },
-        itemBuilder: (_) => [
-          if (opt['uberEatsUrl'] != null) PopupMenuItem(value: opt['uberEatsUrl'] as String, child: const Text('Uber Eats')),
-          if (opt['deliverooUrl'] != null) PopupMenuItem(value: opt['deliverooUrl'] as String, child: const Text('Deliveroo')),
-          if (opt['justEatUrl'] != null) PopupMenuItem(value: opt['justEatUrl'] as String, child: const Text('Just Eat')),
-        ],
       ),
     );
   }

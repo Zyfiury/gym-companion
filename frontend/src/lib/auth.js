@@ -7,6 +7,10 @@ import localforage from 'localforage'
 const accountsStore = localforage.createInstance({ name: 'gymapp', storeName: 'accounts' })
 const SESSION_KEY = 'gymapp_session'
 
+export const DEMO_TEST_EMAIL = 'test@gym.app'
+export const DEMO_TEST_PASSWORD = 'test123'
+const DEMO_TEST_USER_ID = 'user_test_demo'
+
 export async function hashPassword(password) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password))
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('')
@@ -80,4 +84,23 @@ export async function getAllAccounts() {
 export async function getAccountById(userId) {
   const accounts = await getAccounts()
   return accounts.find((a) => a.userId === userId) || null
+}
+
+/** Ensures shared test login exists for web/APK testers (IndexedDB, per device). */
+export async function ensureDemoTestAccount() {
+  const accounts = await getAccounts()
+  const normalized = DEMO_TEST_EMAIL
+  const existing = accounts.find((a) => a.email === normalized)
+  if (existing) return existing
+
+  const account = {
+    userId: DEMO_TEST_USER_ID,
+    email: normalized,
+    passwordHash: await hashPassword(DEMO_TEST_PASSWORD),
+    displayName: 'Test User',
+    createdAt: new Date().toISOString(),
+  }
+  accounts.push(account)
+  await saveAccounts(accounts)
+  return account
 }

@@ -95,7 +95,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 context,
                 connected: state.healthConnected,
                 steps: u.steps.toInt(),
-                onConnect: () => state.refreshHealthData(),
+                onConnect: () => state.refreshHealthData(requestIfNeeded: true),
               ),
               child: AppCard(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),

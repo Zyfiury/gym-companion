@@ -36,3 +36,6 @@ Thumbs.db
 
 # Local agent memory (user-specific chat history)
 memory/chat_history.json
+
+# Test APKs (share via Desktop / scripts folder locally)
+*.apk

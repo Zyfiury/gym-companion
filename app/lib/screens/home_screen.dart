@@ -132,7 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       context,
                       connected: state.healthConnected,
                       steps: u.steps.toInt(),
-                      onConnect: () => state.refreshHealthData(),
+                      onConnect: () => state.refreshHealthData(requestIfNeeded: true),
                     ),
                   ),
                   StatPill(

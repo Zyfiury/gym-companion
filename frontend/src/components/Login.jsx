@@ -124,6 +124,12 @@ export default function Login() {
               </button>
             </motion.form>
           </AnimatePresence>
+
+          {tab === 'login' && (
+            <p className="mt-4 text-center text-xs text-slate-500">
+              Test login: <span className="text-slate-400">test@gym.app</span> / <span className="text-slate-400">test123</span>
+            </p>
+          )}
         </div>
       </motion.div>
     </div>

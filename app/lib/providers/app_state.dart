@@ -87,6 +87,8 @@ class AppState extends ChangeNotifier {
         session = await _auth.getSession();
         if (session != null) await _loadUserData(session!['userId']!);
       }
+    } catch (e, st) {
+      debugPrint('AppState init failed: $e\n$st');
     } finally {
       loading = false;
       notifyListeners();
@@ -94,6 +96,7 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _loadUserData(String uid) async {
+    try {
     if (useFirebase) {
       user = await FirebaseService.loadUserData(uid) ?? UserData.defaults()..userId = uid;
       feedPosts = await FirebaseService.getFeedPosts();
@@ -133,6 +136,9 @@ class AppState extends ChangeNotifier {
     await refreshHealthData();
     await _migrateWorkoutPlanIfNeeded(uid);
     await _checkLocationPrompt();
+    } catch (e, st) {
+      debugPrint('Load user data failed: $e\n$st');
+    }
   }
 
   Future<void> _migrateWorkoutPlanIfNeeded(String uid) async {
@@ -191,14 +197,21 @@ class AppState extends ChangeNotifier {
   List<Map<String, dynamic>> dailyLogsHistory = [];
   List<Map<String, dynamic>> leaderboard = [];
 
-  Future<void> refreshHealthData() async {
+  Future<void> refreshHealthData({bool requestIfNeeded = false}) async {
     if (user == null) return;
-    final granted = await HealthService.requestPermissions();
-    healthConnected = granted;
-    if (granted) {
-      final steps = await HealthService.getTodaySteps();
-      user!.steps = steps.toDouble();
-      if (userId != null) await _saveUser(userId!);
+    try {
+      var granted = await HealthService.hasPermissions();
+      if (!granted && requestIfNeeded) {
+        granted = await HealthService.requestPermissions();
+      }
+      healthConnected = granted;
+      if (granted) {
+        final steps = await HealthService.getTodaySteps();
+        user!.steps = steps.toDouble();
+        if (userId != null) await _saveUser(userId!);
+      }
+    } catch (_) {
+      healthConnected = false;
     }
     notifyListeners();
   }

@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { login as authLogin, signUp as authSignUp, saveSession, getSession, clearSession } from '../lib/auth'
+import {
+  login as authLogin, signUp as authSignUp, saveSession, getSession, clearSession, ensureDemoTestAccount,
+} from '../lib/auth'
 import { setActiveUser, loadUserData, saveUserData, setupOfflineListeners, cacheWeeklyPlan } from '../lib/userStore'
 import { getDefaultUserData } from '../lib/sessions'
 
@@ -20,6 +22,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const init = async () => {
+      await ensureDemoTestAccount()
       const s = getSession()
       if (s?.userId) {
         setActiveUser(s.userId)

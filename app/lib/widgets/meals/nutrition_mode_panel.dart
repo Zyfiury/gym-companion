@@ -6,6 +6,7 @@ import '../../services/location_service.dart';
 import '../../theme/app_theme.dart';
 import '../gradient_button.dart';
 import '../premium_ui.dart';
+import 'delivery_option_tile.dart';
 
 class NutritionModePanel extends StatefulWidget {
   final UserData user;
@@ -28,6 +29,15 @@ class _NutritionModePanelState extends State<NutritionModePanel> {
   void initState() {
     super.initState();
     _dineIn = widget.user.nutritionMode == 'eat_out';
+    if (widget.user.weeklyPlan.deliveryOptions?.isNotEmpty == true) {
+      _areaLabel = 'your area';
+    }
+  }
+
+  Future<void> _persistMode(bool dineIn) async {
+    final mode = dineIn ? 'eat_out' : 'home_delivery';
+    if (widget.user.nutritionMode == mode) return;
+    await context.read<AppState>().patchUser((u) => u.nutritionMode = mode);
   }
 
   Future<LocationResolveResult?> _resolveLocation() async {
@@ -39,7 +49,7 @@ class _NutritionModePanelState extends State<NutritionModePanel> {
     if (!mounted) return null;
     setState(() {
       _requestingLocation = false;
-      _locationHint = result.location?.isDemoFallback == true ? result.message : null;
+      _locationHint = null;
       if (!result.ok) _error = result.message;
     });
 
@@ -61,6 +71,8 @@ class _NutritionModePanelState extends State<NutritionModePanel> {
       final loc = await _resolveLocation();
       if (loc == null || !loc.ok) return;
 
+      await _persistMode(_dineIn);
+
       final state = context.read<AppState>();
       final result = await state
           .refreshDeliveryOptions(dineIn: _dineIn)
@@ -68,7 +80,7 @@ class _NutritionModePanelState extends State<NutritionModePanel> {
 
       if (!mounted) return;
       setState(() {
-        _areaLabel = result?.areaLabel ?? loc.location?.label;
+        _areaLabel = result?.areaLabel ?? loc.location?.label ?? 'your area';
         if (result == null || result.options.isEmpty) {
           _error = result?.reply.replaceAll('**', '').replaceAll('📍 ', '') ??
               'No options found nearby.';
@@ -79,7 +91,7 @@ class _NutritionModePanelState extends State<NutritionModePanel> {
 
       if (result != null && result.options.isNotEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Found ${result.options.length} options near you')),
+          SnackBar(content: Text('Found ${result.options.length} ${_dineIn ? 'restaurants' : 'delivery'} options')),
         );
       }
     } catch (_) {
@@ -91,12 +103,15 @@ class _NutritionModePanelState extends State<NutritionModePanel> {
     }
   }
 
+  void _onModeChanged(bool dineIn) {
+    setState(() => _dineIn = dineIn);
+    _persistMode(dineIn);
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.appTheme;
-    final mode = widget.user.nutritionMode;
-    if (mode == 'cook_myself') return const SizedBox.shrink();
-
+    final options = context.watch<AppState>().user?.weeklyPlan.deliveryOptions ?? [];
     final showEnableLocation = _error != null && _areaLabel == null && _isLocationError(_error!);
     final showAllergyHint = _error != null && !_isLocationError(_error!);
 
@@ -104,9 +119,20 @@ class _NutritionModePanelState extends State<NutritionModePanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              Icon(Icons.delivery_dining_outlined, size: 20, color: AppColors.accent),
+              const SizedBox(width: 8),
+              Text(
+                'Delivery & eat out',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: t.textPrimary),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
           Text(
-            'How do you want to eat today?',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: t.textPrimary),
+            'Find nearby takeaways or restaurants that fit your macros and allergies.',
+            style: TextStyle(fontSize: 12, color: t.textSecondary, height: 1.35),
           ),
           const SizedBox(height: 12),
           Row(
@@ -115,7 +141,7 @@ class _NutritionModePanelState extends State<NutritionModePanel> {
                 child: _ModeChip(
                   label: 'Deliver to me',
                   selected: !_dineIn,
-                  onTap: () => setState(() => _dineIn = false),
+                  onTap: () => _onModeChanged(false),
                 ),
               ),
               const SizedBox(width: 8),
@@ -123,7 +149,7 @@ class _NutritionModePanelState extends State<NutritionModePanel> {
                 child: _ModeChip(
                   label: 'Eat out',
                   selected: _dineIn,
-                  onTap: () => setState(() => _dineIn = true),
+                  onTap: () => _onModeChanged(true),
                 ),
               ),
             ],
@@ -137,7 +163,7 @@ class _NutritionModePanelState extends State<NutritionModePanel> {
                 child: Text(
                   _areaLabel != null
                       ? 'Near $_areaLabel'
-                      : _locationHint ?? 'Uses your location for nearby spots',
+                      : _locationHint ?? 'Uses your GPS for nearby spots',
                   style: TextStyle(fontSize: 12, color: t.textSecondary),
                 ),
               ),
@@ -158,13 +184,7 @@ class _NutritionModePanelState extends State<NutritionModePanel> {
                       final result = await _resolveLocation();
                       if (result?.ok == true && mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              result!.location!.isDemoFallback
-                                  ? 'Using demo location — tap Find options'
-                                  : 'Location ready — tap Find options',
-                            ),
-                          ),
+                          const SnackBar(content: Text('Location ready — tap Find options')),
                         );
                       }
                     },
@@ -173,7 +193,7 @@ class _NutritionModePanelState extends State<NutritionModePanel> {
           ],
           if (showAllergyHint) ...[
             Text(
-              'Location is set. Adjust allergies or diet in Profile → Nutrition if these results look too strict.',
+              'Adjust allergies in Profile → Nutrition if results look too strict.',
               style: TextStyle(fontSize: 11, color: t.textMuted, height: 1.35),
             ),
             const SizedBox(height: 8),
@@ -183,6 +203,15 @@ class _NutritionModePanelState extends State<NutritionModePanel> {
             expanded: true,
             onPressed: (_loading || _requestingLocation) ? null : _findOptions,
           ),
+          if (options.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text(
+              _dineIn ? 'Restaurants near you' : 'Delivery near you',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: t.textPrimary),
+            ),
+            const SizedBox(height: 10),
+            ...options.take(5).map((opt) => DeliveryOptionTile(option: opt)),
+          ],
         ],
       ),
     );

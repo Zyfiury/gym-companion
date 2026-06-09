@@ -6,8 +6,9 @@ import '../services/backend_config.dart';
 class ReleaseConfig {
   static bool get isProductionReady {
     if (!kReleaseMode) return true;
+    if (BackendConfig.allowSideloadTester) return true;
     return BackendConfig.hasFirebase && DefaultFirebaseOptions.currentPlatform != null;
   }
 
-  static bool get allowLocalAuth => !kReleaseMode;
+  static bool get allowLocalAuth => !kReleaseMode || BackendConfig.allowSideloadTester;
 }

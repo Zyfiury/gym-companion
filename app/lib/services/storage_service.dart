@@ -15,19 +15,23 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_userKey(userId));
     if (raw == null) return _defaultForUser(userId);
-    var data = UserData.decode(raw);
-    if (userId == 'user_test_001' && data.allergies.isEmpty) {
-      data.allergies = ['dairy'];
-      data.mealVariety = 'rotate';
-      data.weeklyPlan = WeeklyPlan(
-        macros: data.weeklyPlan.macros,
-        workouts: data.weeklyPlan.workouts,
-        meals: MealVarietyService.generateDailyPlan(data),
-        shoppingList: data.weeklyPlan.shoppingList,
-      );
-      await saveUser(userId, data);
+    try {
+      var data = UserData.decode(raw);
+      if (userId == 'user_test_001' && data.allergies.isEmpty) {
+        data.allergies = ['dairy'];
+        data.mealVariety = 'rotate';
+        data.weeklyPlan = WeeklyPlan(
+          macros: data.weeklyPlan.macros,
+          workouts: data.weeklyPlan.workouts,
+          meals: MealVarietyService.generateDailyPlan(data),
+          shoppingList: data.weeklyPlan.shoppingList,
+        );
+        await saveUser(userId, data);
+      }
+      return data;
+    } catch (_) {
+      return _defaultForUser(userId);
     }
-    return data;
   }
 
   UserData _defaultForUser(String userId) {
