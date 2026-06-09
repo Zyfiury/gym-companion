@@ -27,7 +27,7 @@ Copy/paste this message:
    - Password: `test123`
 5. Complete the quick onboarding (weight, goal, etc.)
 
-**Note:** This is the web version. It works great for coach, meals, and workouts. Camera scan and Apple Health are only in the Android app.
+**Note:** This is the **same Flutter app** as Android (web build). Coach, meals, delivery/eat out, and workouts work. Camera scan and Apple Health need the native Android app.
 
 ---
 

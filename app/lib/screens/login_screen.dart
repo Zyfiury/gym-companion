@@ -1,5 +1,4 @@
-import 'dart:io' show Platform;
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -225,7 +224,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                         ),
-                        if (Platform.isIOS) ...[
+                        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) ...[
                           const SizedBox(height: 10),
                           StaggeredEntry(
                             index: 3,

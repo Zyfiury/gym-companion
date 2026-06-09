@@ -33,7 +33,7 @@ class StartupService {
 
       await FirebaseService.enableOfflineSync();
 
-      if (kReleaseMode) {
+      if (kReleaseMode && !kIsWeb) {
         FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
         PlatformDispatcher.instance.onError = (error, stack) {
           FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
@@ -67,7 +67,7 @@ class StartupService {
   static Future<void> runDeferredStartup() async {
     if (_deferredDone) return;
     _deferredDone = true;
-    await SubscriptionService.init();
+    if (!kIsWeb) await SubscriptionService.init();
     try {
       await NotificationService.init();
     } catch (e, st) {

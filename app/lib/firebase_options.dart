@@ -13,7 +13,19 @@ class DefaultFirebaseOptions {
       return null;
     }
 
-    if (kIsWeb) return null;
+    if (kIsWeb) {
+      final appId = (dotenv.env['FIREBASE_WEB_APP_ID'] ?? dotenv.env['FIREBASE_APP_ID'] ?? '').trim();
+      if (appId.isEmpty || !appId.contains(':web:')) return null;
+      final storageBucket = (dotenv.env['FIREBASE_STORAGE_BUCKET'] ?? '').trim();
+      return FirebaseOptions(
+        apiKey: apiKey,
+        appId: appId,
+        messagingSenderId: senderId,
+        projectId: projectId,
+        storageBucket: storageBucket.isNotEmpty ? storageBucket : null,
+        authDomain: '$projectId.firebaseapp.com',
+      );
+    }
 
     if (defaultTargetPlatform == TargetPlatform.android) {
       final appId = (dotenv.env['FIREBASE_ANDROID_APP_ID'] ?? dotenv.env['FIREBASE_APP_ID'] ?? '').trim();

@@ -13,22 +13,12 @@ if (-not (Get-Command $gh -ErrorAction SilentlyContinue)) {
 
 $envFile = Join-Path $root "app\.env"
 if (Test-Path $envFile) {
-  $vars = @{}
-  Get-Content $envFile | ForEach-Object {
-    if ($_ -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$' -and $_ -notmatch '^\s*#') {
-      $vars[$matches[1]] = $matches[2].Trim().Trim('"').Trim("'")
-    }
-  }
-  if ($vars['GROQ_API_KEY']) {
-    $vars['GROQ_API_KEY'] | & $gh secret set VITE_GROQ_API_KEY
-    Write-Host "Set GitHub secret VITE_GROQ_API_KEY" -ForegroundColor Green
-  }
-  if ($vars['YOUTUBE_API_KEY']) {
-    $vars['YOUTUBE_API_KEY'] | & $gh secret set VITE_YOUTUBE_API_KEY
-    Write-Host "Set GitHub secret VITE_YOUTUBE_API_KEY" -ForegroundColor Green
-  }
+  $envRaw = Get-Content $envFile -Raw
+  $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($envRaw))
+  $b64 | & $gh secret set APP_DOTENV_B64
+  Write-Host "Synced app\.env to GitHub secret APP_DOTENV_B64" -ForegroundColor Green
 } else {
-  Write-Host "No app\.env found. Add GitHub secrets manually if needed." -ForegroundColor Yellow
+  Write-Host "No app\.env found. Flutter web build will fail without APP_DOTENV_B64 secret." -ForegroundColor Yellow
 }
 
 $owner = (& $gh api user -q .login)
