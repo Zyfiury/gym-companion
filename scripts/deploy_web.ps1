@@ -34,9 +34,10 @@ if (Test-Path $envFile) {
 $owner = (& $gh api user -q .login)
 $repo = "gym-companion"
 try {
-  & $gh api -X PUT "repos/$owner/$repo/pages" -f build_type=workflow -f 'source[branch]=main' -f 'source[path]=/' 2>$null
+  & $gh api "repos/$owner/$repo/pages" 2>$null | Out-Null
 } catch {
-  Write-Host "Enable Pages manually: repo Settings -> Pages -> Source: GitHub Actions" -ForegroundColor Yellow
+  & $gh api -X POST "repos/$owner/$repo/pages" -f build_type=workflow 2>$null | Out-Null
+  Write-Host "Enabled GitHub Pages on repo." -ForegroundColor Green
 }
 
 Write-Host "Pushing to GitHub..." -ForegroundColor Cyan
