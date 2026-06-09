@@ -31,8 +31,6 @@ jobs:
         with:
           channel: stable
           cache: true
-          cache-key: flutter-web
-          cache-path: app
 
       - name: Create app .env from secret
         working-directory: app
