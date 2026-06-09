@@ -1,0 +1,75 @@
+name: gym_companion
+description: AI-powered gym, nutrition and budget companion.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  provider: ^6.1.2
+  flutter_riverpod: ^2.6.1
+  shared_preferences: ^2.3.3
+  http: ^1.2.2
+  mobile_scanner: ^6.0.2
+  url_launcher: ^6.3.1
+  intl: ^0.19.0
+  crypto: ^3.0.6
+  supabase_flutter: ^2.8.0
+  flutter_dotenv: ^5.2.1
+  flutter_secure_storage: ^9.2.2
+  dio: ^5.7.0
+  speech_to_text: ^7.0.0
+  permission_handler: ^11.3.1
+  purchases_flutter: ^8.1.0
+  health: ^11.1.0
+  csv: ^6.0.0
+  pdf: ^3.11.1
+  path_provider: ^2.1.4
+  share_plus: ^10.0.2
+  firebase_core: ^3.8.0
+  firebase_auth: ^5.3.4
+  cloud_firestore: ^5.6.0
+  firebase_messaging: ^15.1.5
+  firebase_crashlytics: ^4.3.4
+  firebase_analytics: ^11.4.4
+  google_sign_in: ^6.2.2
+  sign_in_with_apple: ^6.1.4
+  connectivity_plus: ^6.1.0
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.10.0
+  geolocator: ^13.0.2
+  shimmer: ^3.0.0
+  image_picker: ^1.1.2
+  fl_chart: ^0.70.2
+  google_fonts: ^6.2.1
+  flutter_animate: ^4.5.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_native_splash: ^2.4.4
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/icon/app_icon.png
+  adaptive_icon_background: "#0A0A12"
+  adaptive_icon_foreground: assets/icon/app_icon.png
+
+flutter_native_splash:
+  color: "#0A0A12"
+  color_dark: "#0A0A12"
+  android_12:
+    color: "#0A0A12"
+    icon_background_color: "#8B5CF6"
+
+flutter:
+  uses-material-design: true
+  assets:
+    - .env

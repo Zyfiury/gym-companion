@@ -1,0 +1,43 @@
+appId: com.gymcompanion.gym_companion
+---
+# Meal variety — swap via meals tab + chat
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "fill-test-account"
+    direction: DOWN
+- tapOn:
+    id: "fill-test-account"
+- tapOn:
+    id: "login-submit"
+- extendedWaitUntil:
+    visible:
+      id: "home-greeting"
+    timeout: 15000
+- tapOn:
+    id: "tab-meals"
+- extendedWaitUntil:
+    visible:
+      id: "meal-swap-btn"
+    timeout: 5000
+- tapOn:
+    id: "meal-swap-btn"
+- extendedWaitUntil:
+    visible:
+      id: "meal-detail-name"
+    timeout: 10000
+- scrollUntilVisible:
+    element:
+      id: "meal-detail-name"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
+    centerElement: true
+- assertVisible:
+    id: "meal-detail-name"
+

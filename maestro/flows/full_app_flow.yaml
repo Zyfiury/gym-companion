@@ -1,0 +1,43 @@
+appId: com.gymcompanion.gym_companion
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "fill-test-account"
+    direction: DOWN
+- tapOn:
+    id: "fill-test-account"
+- tapOn:
+    id: "login-submit"
+- extendedWaitUntil:
+    visible:
+      id: "home-greeting"
+    timeout: 15000
+- tapOn:
+    id: "tab-workout"
+- assertVisible: "WEEKLY SPLIT"
+- tapOn:
+    id: "tab-meals"
+- tapOn:
+    id: "tab-progress"
+- tapOn:
+    id: "tab-feed"
+- assertVisible:
+    id: "feed-title"
+- tapOn:
+    id: "tab-chat"
+- assertVisible: "AI Coach"
+- tapOn:
+    id: "tab-profile"
+- back
+- tapOn:
+    id: "logout-btn"
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 10000

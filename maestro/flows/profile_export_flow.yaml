@@ -1,0 +1,36 @@
+appId: com.gymcompanion.gym_companion
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "fill-test-account"
+    direction: DOWN
+- tapOn:
+    id: "fill-test-account"
+- tapOn:
+    id: "login-submit"
+- extendedWaitUntil:
+    visible:
+      id: "home-greeting"
+    timeout: 15000
+- tapOn:
+    id: "tab-profile"
+- tapOn:
+    id: "profile-tab-account"
+- extendedWaitUntil:
+    visible:
+      id: "export-csv-btn"
+    timeout: 15000
+- assertVisible:
+    id: "export-pdf-btn"
+- tapOn:
+    id: "export-csv-btn"
+- back
+- tapOn:
+    id: "export-pdf-btn"
+- back

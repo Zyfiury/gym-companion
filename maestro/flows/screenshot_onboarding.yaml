@@ -1,0 +1,44 @@
+appId: com.gymcompanion.gym_companion
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 30000
+- tapOn:
+    id: "login-email"
+- inputText: "demo@gym.app"
+- tapOn:
+    id: "login-password"
+- inputText: "demo123"
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "login-submit"
+    direction: DOWN
+- tapOn:
+    id: "login-submit"
+- extendedWaitUntil:
+    visible:
+      id: "onboard-get-started"
+    timeout: 15000
+- takeScreenshot: 14_onboarding_welcome
+- tapOn:
+    id: "onboard-get-started"
+- extendedWaitUntil:
+    visible:
+      id: "onboard-title"
+    timeout: 10000
+- takeScreenshot: 15_onboarding_age
+- tapOn: "Next"
+- takeScreenshot: 16_onboarding_disabilities
+- tapOn: "Next"
+- takeScreenshot: 17_onboarding_allergies
+- tapOn: "Next"
+- takeScreenshot: 18_onboarding_diet_prefs
+- tapOn: "Next"
+- tapOn:
+    id: "goal-cut"
+    optional: true
+- takeScreenshot: 19_onboarding_goals

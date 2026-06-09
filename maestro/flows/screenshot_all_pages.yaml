@@ -1,0 +1,144 @@
+appId: com.gymcompanion.gym_companion
+---
+# Capture screenshots of every major screen for store/docs.
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 30000
+- takeScreenshot: 01_login
+
+# --- Main app (complete profile) ---
+- scrollUntilVisible:
+    element:
+      id: "fill-test-account"
+    direction: DOWN
+- tapOn:
+    id: "fill-test-account"
+- tapOn:
+    id: "login-submit"
+- extendedWaitUntil:
+    visible:
+      id: "home-greeting"
+    timeout: 20000
+- takeScreenshot: 02_home
+- tapOn:
+    id: "tab-chat"
+- extendedWaitUntil:
+    visible:
+      id: "chat-input"
+    timeout: 10000
+- takeScreenshot: 03_coach_chat
+- tapOn:
+    id: "tab-workout"
+- extendedWaitUntil:
+    visible:
+      id: "workout-custom-routines"
+    timeout: 10000
+- takeScreenshot: 04_workout_barcode
+- tapOn:
+    id: "workout-custom-routines"
+- extendedWaitUntil:
+    visible:
+      id: "custom-workout-create"
+    timeout: 10000
+- takeScreenshot: 05_custom_workout_list
+- tapOn:
+    id: "custom-workout-create"
+- extendedWaitUntil:
+    visible:
+      id: "custom-workout-name"
+    timeout: 10000
+- takeScreenshot: 06_custom_workout_builder
+- back
+- back
+- tapOn:
+    id: "tab-meals"
+- extendedWaitUntil:
+    visible:
+      id: "food-plan-toggle"
+    timeout: 10000
+- takeScreenshot: 07_meals_day
+- tapOn: "Week"
+- takeScreenshot: 08_meals_week
+- tapOn: "Month"
+- takeScreenshot: 09_meals_month
+- tapOn: "Today"
+- tapOn:
+    id: "tab-progress"
+- takeScreenshot: 10_progress
+- tapOn:
+    id: "tab-feed"
+- extendedWaitUntil:
+    visible:
+      id: "feed-title"
+    timeout: 10000
+- takeScreenshot: 11_feed
+- tapOn:
+    id: "tab-profile"
+- tapOn:
+    id: "profile-tab-nutrition"
+- extendedWaitUntil:
+    visible:
+      id: "prefs-title"
+    timeout: 10000
+- takeScreenshot: 12_profile
+- tapOn:
+    id: "profile-tab-account"
+- extendedWaitUntil:
+    visible:
+      id: "profile-pro-upgrade"
+    timeout: 10000
+- tapOn:
+    id: "profile-pro-upgrade"
+- extendedWaitUntil:
+    visible: "Everything you need to hit your goals"
+    timeout: 10000
+- takeScreenshot: 13_paywall
+- back
+- back
+
+# --- Onboarding (incomplete profile) ---
+- tapOn:
+    id: "logout-btn"
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 10000
+- tapOn:
+    id: "login-email"
+- inputText: "demo@gym.app"
+- tapOn:
+    id: "login-password"
+- inputText: "demo123"
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "login-submit"
+    direction: DOWN
+- tapOn:
+    id: "login-submit"
+- extendedWaitUntil:
+    visible:
+      id: "onboard-get-started"
+    timeout: 15000
+- takeScreenshot: 14_onboarding_welcome
+- tapOn:
+    id: "onboard-get-started"
+- extendedWaitUntil:
+    visible:
+      id: "onboard-title"
+    timeout: 10000
+- takeScreenshot: 15_onboarding_profile
+- tapOn: "Next"
+- takeScreenshot: 16_onboarding_disabilities
+- tapOn: "Next"
+- takeScreenshot: 17_onboarding_allergies
+- tapOn: "Next"
+- takeScreenshot: 18_onboarding_diet_prefs
+- tapOn: "Next"
+- tapOn:
+    id: "goal-cut"
+    optional: true
+- takeScreenshot: 19_onboarding_goals

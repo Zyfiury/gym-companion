@@ -1,0 +1,15 @@
+appId: com.gymcompanion.web
+---
+- openLink: http://localhost:5173
+- assertVisible: "Gym Companion"
+- tapOn: "Workout"
+- assertVisible:
+    text: "Today's Workout"
+- assertVisible:
+    text: "Full week"
+- tapOn: "Meals"
+- assertVisible:
+    text: "Daily macros"
+- assertVisible:
+    text: "Shopping list"
+    optional: true

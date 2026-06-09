@@ -1,0 +1,61 @@
+appId: com.gymcompanion.gym_companion
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "fill-test-account"
+    direction: DOWN
+- tapOn:
+    id: "fill-test-account"
+- tapOn:
+    id: "login-submit"
+- extendedWaitUntil:
+    visible:
+      id: "home-greeting"
+    timeout: 15000
+- tapOn:
+    id: "tab-workout"
+- extendedWaitUntil:
+    visible:
+      id: "barcode-input"
+    timeout: 10000
+- tapOn:
+    id: "barcode-input"
+- inputText: "5000112588103"
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "barcode-scan-btn"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "barcode-scan-btn"
+- scrollUntilVisible:
+    element:
+      id: "barcode-result"
+    direction: DOWN
+    timeout: 10000
+- assertVisible:
+    id: "barcode-result"
+- tapOn:
+    id: "tab-chat"
+- tapOn:
+    id: "chat-input"
+- inputText: "log 200g greek yogurt"
+- hideKeyboard
+- tapOn:
+    id: "chat-send"
+- scrollUntilVisible:
+    element:
+      id: "chat-last-reply"
+    direction: DOWN
+    timeout: 20000
+    visibilityPercentage: 50
+    centerElement: true
+- assertVisible:
+    id: "chat-last-reply"

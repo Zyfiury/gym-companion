@@ -1,0 +1,19 @@
+appId: com.gymcompanion.web
+---
+- openLink: http://localhost:5173
+- assertVisible: "Gym Companion"
+- tapOn: "Profile"
+- assertVisible: "Your Profile"
+- tapOn:
+    id: "profile-form"
+    optional: true
+- tapOn: "Goal"
+- tapOn: "Cut"
+- tapOn:
+    text: "Weight (kg)"
+    optional: true
+- inputText: "72"
+- tapOn: "Weekly budget (£)"
+- inputText: "45"
+- tapOn: "Save profile"
+- assertVisible: "Saved"

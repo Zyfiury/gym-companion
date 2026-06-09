@@ -1,0 +1,28 @@
+appId: com.gymcompanion.gym_companion
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "fill-test-account"
+    direction: DOWN
+- tapOn:
+    id: "fill-test-account"
+- tapOn:
+    id: "login-submit"
+- extendedWaitUntil:
+    visible:
+      id: "home-greeting"
+    timeout: 15000
+- tapOn:
+    id: "tab-chat"
+- tapOn:
+    id: "chat-camera-btn"
+- extendedWaitUntil:
+    visible: "Choose from gallery"
+    timeout: 5000
+- tapOn: "Choose from gallery"

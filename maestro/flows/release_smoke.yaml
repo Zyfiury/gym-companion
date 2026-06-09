@@ -1,0 +1,26 @@
+appId: com.gymcompanion.gym_companion
+---
+# Release smoke — home + coach after login
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "fill-test-account"
+    direction: DOWN
+- tapOn:
+    id: "fill-test-account"
+- tapOn:
+    id: "login-submit"
+- extendedWaitUntil:
+    visible:
+      id: "home-greeting"
+    timeout: 20000
+- assertVisible:
+    id: "home-greeting"
+- tapOn:
+    id: "tab-chat"
+- assertVisible: "AI Coach"

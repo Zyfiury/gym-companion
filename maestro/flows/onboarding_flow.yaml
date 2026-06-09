@@ -1,0 +1,57 @@
+appId: com.gymcompanion.gym_companion
+---
+# Onboarding wizard — login as demo user (profile incomplete)
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "login-email"
+    direction: DOWN
+- tapOn:
+    id: "login-email"
+- inputText: "demo@gym.app"
+- tapOn:
+    id: "login-password"
+- inputText: "demo123"
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "login-submit"
+    direction: DOWN
+- tapOn:
+    id: "login-submit"
+- extendedWaitUntil:
+    visible:
+      id: "onboard-get-started"
+    timeout: 15000
+- tapOn:
+    id: "onboard-get-started"
+- extendedWaitUntil:
+    visible:
+      id: "onboard-title"
+    timeout: 10000
+- tapOn: "Next"
+- tapOn: "Next"
+- tapOn: "Next"
+- tapOn: "Next"
+- tapOn:
+    id: "goal-bulk"
+- assertVisible:
+    id: "onboard-tdee-preview"
+- tapOn: "Next"
+- tapOn: "Next"
+- tapOn:
+    id: "nutrition-cook_myself"
+- tapOn:
+    id: "onboard-finish"
+- extendedWaitUntil:
+    visible:
+      id: "chat-input"
+    timeout: 15000
+- assertVisible:
+    id: "chat-input"
+- assertVisible: "AI Coach"

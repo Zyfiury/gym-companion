@@ -1,0 +1,31 @@
+appId: com.gymcompanion.gym_companion
+
+---
+
+# Flutter app launch smoke test
+
+- launchApp:
+
+    clearState: true
+
+- extendedWaitUntil:
+
+    visible: "Gym Companion"
+
+    timeout: 30000
+
+- scrollUntilVisible:
+
+    element:
+
+      id: "fill-test-account"
+
+    direction: DOWN
+
+    timeout: 10000
+
+- assertVisible:
+
+    id: "fill-test-account"
+
+

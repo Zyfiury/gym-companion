@@ -1,0 +1,15 @@
+appId: com.gymcompanion.web
+---
+- openLink: http://localhost:5173
+- tapOn: "Workout"
+- assertVisible: "Log food"
+- tapOn:
+    id: "barcode-input"
+    optional: true
+- inputText: "5012345678901"
+- tapOn: "Scan"
+- assertVisible:
+    text: "logged"
+- assertVisible:
+    id: "scan-result"
+    optional: true

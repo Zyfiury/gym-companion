@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+  body {
+    @apply min-h-screen bg-surface text-slate-100;
+  }
+  html.light body {
+    @apply bg-slate-50 text-slate-900;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-white/5 bg-surface-card/90 p-4 shadow-card backdrop-blur-xl transition-all duration-300;
+  }
+  html.light .card {
+    @apply border-slate-200 bg-white shadow-lg;
+  }
+
+  .card-glow {
+    @apply card bg-gradient-card;
+  }
+
+  .btn-gradient {
+    @apply rounded-xl bg-gradient-brand px-4 py-2.5 font-semibold text-white shadow-glow transition-all duration-200 hover:scale-[1.02] hover:opacity-95 active:scale-[0.98];
+  }
+
+  .btn-ghost {
+    @apply rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 font-medium text-slate-200 transition-all duration-200 hover:bg-white/10 hover:border-violet-500/30 active:scale-[0.98];
+  }
+  html.light .btn-ghost {
+    @apply border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200;
+  }
+
+  .input-field {
+    @apply w-full rounded-xl border border-white/10 bg-surface-elevated px-3 py-2.5 text-slate-100 placeholder-slate-500 transition focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/20;
+  }
+  html.light .input-field {
+    @apply border-slate-200 bg-white text-slate-900;
+  }
+
+  .nav-tab {
+    @apply flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium text-slate-500 transition-all duration-200;
+  }
+  .nav-tab-active {
+    @apply text-violet-400;
+  }
+  html.light .nav-tab-active {
+    @apply text-violet-600;
+  }
+
+  .stat-ring {
+    @apply relative flex h-16 w-16 items-center justify-center rounded-full;
+    background: conic-gradient(from 0deg, #8b5cf6 var(--pct), #1a1a2e var(--pct));
+  }
+
+  .chat-bubble-user {
+    @apply ml-auto max-w-[85%] rounded-2xl rounded-br-md bg-gradient-brand px-4 py-2.5 text-sm text-white shadow-glow;
+  }
+
+  .chat-bubble-ai {
+    @apply mr-auto max-w-[85%] rounded-2xl rounded-bl-md border border-white/10 bg-surface-elevated px-4 py-2.5 text-sm text-slate-200;
+  }
+  html.light .chat-bubble-ai {
+    @apply border-slate-200 bg-slate-100 text-slate-800;
+  }
+
+  .tap-haptic {
+    @apply transition-transform active:scale-95;
+  }
+
+  .skeleton {
+    @apply animate-pulse rounded-lg bg-white/10;
+  }
+
+  .carousel-scroll {
+    @apply flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 scrollbar-hide;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .carousel-scroll::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

@@ -1,0 +1,49 @@
+appId: com.gymcompanion.gym_companion
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "fill-test-account"
+    direction: DOWN
+- tapOn:
+    id: "fill-test-account"
+- tapOn:
+    id: "login-submit"
+- extendedWaitUntil:
+    visible:
+      id: "home-greeting"
+    timeout: 15000
+- tapOn:
+    id: "tab-feed"
+- extendedWaitUntil:
+    visible:
+      id: "feed-title"
+    timeout: 10000
+- tapOn:
+    id: "feed-create-btn"
+- extendedWaitUntil:
+    visible: "Share with the community"
+    timeout: 5000
+- tapOn:
+    id: "feed-post-type-motivation"
+- extendedWaitUntil:
+    visible:
+      id: "feed-post-input"
+    timeout: 5000
+- tapOn:
+    id: "feed-post-input"
+- inputText: "E2E test post from Maestro"
+- hideKeyboard
+- tapOn:
+    id: "feed-post-submit"
+- extendedWaitUntil:
+    visible:
+      id: "feed-post-latest"
+    timeout: 15000
+- assertVisible:
+    id: "feed-post-latest"

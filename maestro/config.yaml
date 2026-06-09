@@ -1,0 +1,9 @@
+# Gym Companion Flutter app — Maestro UI tests
+# Run: cd maestro && maestro test flows/
+
+appId: com.gymcompanion.gym_companion
+---
+tags:
+  - smoke
+  - gymapp
+  - flutter

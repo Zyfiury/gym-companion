@@ -1,0 +1,38 @@
+# Secrets — never commit real keys
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+*.jks
+*.keystore
+**/GoogleService-Info.plist
+**/secrets.json
+**/credentials.json
+
+# Flutter / Dart
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.pub-cache/
+**/.pub/
+**/build/
+**/coverage/
+**/*.iml
+**/.idea/
+**/.vscode/
+**/.DS_Store
+
+# Node / web frontend
+**/node_modules/
+**/dist/
+**/.vite/
+
+# OS / editor
+Thumbs.db
+*.log
+*.swp
+
+# Local agent memory (user-specific chat history)
+memory/chat_history.json
