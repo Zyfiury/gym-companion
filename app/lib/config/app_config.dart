@@ -13,8 +13,8 @@ class AppConfig {
   static bool get showSocialLogin => true;
 
   /// GitHub Pages — update owner/repo if your fork differs (see PLAY_STORE_RELEASE.md).
-  static const privacyPolicyUrl = 'https://omarz.github.io/gym-companion/legal/privacy.html';
-  static const termsOfServiceUrl = 'https://omarz.github.io/gym-companion/legal/terms.html';
+  static const privacyPolicyUrl = 'https://zyfiury.github.io/gym-companion/legal/privacy.html';
+  static const termsOfServiceUrl = 'https://zyfiury.github.io/gym-companion/legal/terms.html';
   static const supportEmail = 'support@gymcompanion.app';
 
   static const proMonthlyPrice = '£7.99/month';

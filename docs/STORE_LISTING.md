@@ -2,8 +2,8 @@
 
 ## Legal URLs (required)
 
-- Privacy: https://omarz.github.io/gym-companion/legal/privacy.html
-- Terms: https://omarz.github.io/gym-companion/legal/terms.html
+- Privacy: https://zyfiury.github.io/gym-companion/legal/privacy.html
+- Terms: https://zyfiury.github.io/gym-companion/legal/terms.html
 
 ---
 
@@ -62,7 +62,7 @@ Additional answers:
 - Data encrypted in transit: **Yes**
 - Users can request deletion: **Yes** (Profile → Delete account)
 - Data used for advertising: **No**
-- Privacy policy URL: `https://omarz.github.io/gym-companion/legal/privacy.html`
+- Privacy policy URL: `https://zyfiury.github.io/gym-companion/legal/privacy.html`
 
 ---
 
