@@ -5,47 +5,182 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Privacy Policy — Gym Companion</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; color: #1a1a1a; }
-    h1 { font-size: 1.75rem; }
-    h2 { margin-top: 1.5rem; font-size: 1.1rem; }
+    :root { color-scheme: light dark; }
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      max-width: 760px;
+      margin: 2rem auto;
+      padding: 0 1.25rem 3rem;
+      line-height: 1.65;
+      color: #1a1a1a;
+      background: #fff;
+    }
+    h1 { font-size: 1.85rem; margin-bottom: 0.25rem; }
+    h2 { margin-top: 2rem; font-size: 1.15rem; border-bottom: 1px solid #e5e5e5; padding-bottom: 0.35rem; }
+    h3 { margin-top: 1.25rem; font-size: 1rem; }
     a { color: #6c5ce7; }
+    ul { padding-left: 1.25rem; }
+    li { margin-bottom: 0.35rem; }
+    .meta { color: #555; font-size: 0.95rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin: 0.75rem 0; }
+    th, td { border: 1px solid #ddd; padding: 0.5rem 0.65rem; text-align: left; vertical-align: top; }
+    th { background: #f7f7f7; }
+    @media (prefers-color-scheme: dark) {
+      body { color: #e8e8e8; background: #111; }
+      h2 { border-color: #333; }
+      th { background: #1a1a1a; }
+      th, td { border-color: #333; }
+      .meta { color: #aaa; }
+    }
   </style>
 </head>
 <body>
   <h1>Privacy Policy</h1>
-  <p><strong>Gym Companion</strong> — Last updated: June 2026</p>
+  <p class="meta"><strong>Gym Companion</strong> · Operated by Gym Companion · Last updated: 11 June 2026</p>
+  <p>This Privacy Policy explains how Gym Companion ("we", "us", "our") collects, uses, shares, and protects your personal data when you use our mobile application and related services.</p>
 
-  <h2>What we collect</h2>
+  <h2>1. Who we are</h2>
+  <p>Gym Companion is a fitness and nutrition companion app. For privacy enquiries, contact us at <a href="mailto:support@gymcompanion.app">support@gymcompanion.app</a>.</p>
+
+  <h2>2. Data we collect</h2>
+  <table>
+    <thead>
+      <tr><th>Category</th><th>Examples</th><th>How collected</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Account data</strong></td>
+        <td>Email address, display name, user ID, authentication tokens</td>
+        <td>When you sign up or sign in (email/password or Google)</td>
+      </tr>
+      <tr>
+        <td><strong>Health &amp; fitness</strong></td>
+        <td>Weight, height, age, gender at birth, goal (cut/bulk/maintain), workout logs, personal records, step count (via Health Connect, with permission), disabilities, pregnancy/period tracking preferences</td>
+        <td>Profile setup, in-app logging, Health Connect (optional)</td>
+      </tr>
+      <tr>
+        <td><strong>Nutrition</strong></td>
+        <td>Food logs, macro targets, meal plans, allergies, dietary restrictions, budget, barcode scans</td>
+        <td>In-app entry, AI coach, barcode scanner</td>
+      </tr>
+      <tr>
+        <td><strong>Photos &amp; camera</strong></td>
+        <td>Meal photos for calorie estimation; barcode images for product lookup; profile photo (stored on device)</td>
+        <td>Camera or gallery, only when you choose</td>
+      </tr>
+      <tr>
+        <td><strong>Location</strong></td>
+        <td>Approximate or precise GPS coordinates</td>
+        <td>Only when you request nearby supermarkets, restaurants, or delivery options (with permission)</td>
+      </tr>
+      <tr>
+        <td><strong>Usage &amp; device</strong></td>
+        <td>App interactions, crash reports, analytics events, device type, OS version</td>
+        <td>Automatically during app use</td>
+      </tr>
+      <tr>
+        <td><strong>Subscription</strong></td>
+        <td>Purchase status, entitlement (Pro/free), transaction identifiers</td>
+        <td>Google Play Billing via RevenueCat</td>
+      </tr>
+      <tr>
+        <td><strong>Community</strong></td>
+        <td>Feed posts, captions, likes</td>
+        <td>When you post in the community feed</td>
+      </tr>
+      <tr>
+        <td><strong>AI coach</strong></td>
+        <td>Chat messages and profile context sent for coaching responses</td>
+        <td>When you use the AI coach feature</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>3. How we use your data</h2>
   <ul>
-    <li><strong>Account:</strong> email address, display name, authentication identifiers (Firebase Auth)</li>
-    <li><strong>Health &amp; fitness:</strong> step count (via Health Connect, with your permission), workout logs, weight history</li>
-    <li><strong>Nutrition:</strong> food logs, macro targets, meal plans, photos you submit for calorie estimation</li>
-    <li><strong>Location:</strong> approximate GPS when you request nearby supermarkets or delivery (with permission)</li>
-    <li><strong>Usage:</strong> crash reports and analytics (Firebase Crashlytics / Analytics)</li>
+    <li>Provide and personalise workouts, meal plans, macro targets, and progress tracking</li>
+    <li>Power the AI coach with context about your goals, logs, and restrictions</li>
+    <li>Recognise food from photos and barcodes to help you log nutrition</li>
+    <li>Find nearby stores and restaurants when you request location-based features</li>
+    <li>Manage Gym Companion Pro subscriptions and restore purchases</li>
+    <li>Improve reliability, fix bugs, and understand feature usage</li>
+    <li>Send optional push notifications (e.g. reminders), if enabled</li>
   </ul>
 
-  <h2>How we use data</h2>
-  <p>To provide personalised workouts, meal plans, AI coaching, progress tracking, and subscription features. AI features use Groq to process your messages and food descriptions. Food photos may be sent to Google Cloud Vision for recognition.</p>
-
-  <h2>Third-party services</h2>
+  <h2>4. Legal basis for processing (GDPR)</h2>
+  <p>If you are in the UK or EEA, we process personal data on the following bases:</p>
   <ul>
-    <li>Google Firebase (auth, database, messaging, crash reporting)</li>
-    <li>Groq (AI coach responses)</li>
-    <li>Google Cloud Vision (optional food photo recognition)</li>
-    <li>Google Places (location-based store search)</li>
-    <li>RevenueCat (subscription management)</li>
-    <li>YouTube (recipe and exercise videos)</li>
+    <li><strong>Contract:</strong> to provide the app and your account (profile, plans, logs)</li>
+    <li><strong>Legitimate interests:</strong> analytics, fraud prevention, service improvement (balanced against your rights)</li>
+    <li><strong>Consent:</strong> location access, camera/photos, Health Connect, push notifications — you may withdraw consent in device or app settings</li>
+    <li><strong>Legal obligation:</strong> where required to comply with applicable law</li>
   </ul>
 
-  <h2>Data storage &amp; security</h2>
-  <p>Your profile and progress are stored in Firebase Cloud Firestore. Data is encrypted in transit (HTTPS/TLS). We do not sell your personal data.</p>
+  <h2>5. Third-party services</h2>
+  <p>We use trusted processors. They access data only to perform services on our behalf:</p>
+  <ul>
+    <li><strong>Google Firebase</strong> — authentication, cloud database (Firestore), analytics, crash reporting, push messaging</li>
+    <li><strong>Groq</strong> — AI coach message processing</li>
+    <li><strong>Google Cloud Vision</strong> — food photo recognition (when you scan meals)</li>
+    <li><strong>Google Places</strong> — supermarket and restaurant search near you</li>
+    <li><strong>YouTube Data API</strong> — exercise and recipe video links</li>
+    <li><strong>RevenueCat</strong> — subscription and entitlement management</li>
+    <li><strong>Google Play</strong> — payment processing for subscriptions</li>
+  </ul>
+  <p>We do not sell your personal information.</p>
 
-  <h2>Your rights</h2>
-  <p>You can delete your account and associated data from the Profile screen in the app. For data requests, contact <a href="mailto:support@gymcompanion.app">support@gymcompanion.app</a>.</p>
+  <h2>6. Data storage &amp; security</h2>
+  <ul>
+    <li>Account and progress data are stored in Firebase Cloud Firestore</li>
+    <li>Profile photos may be stored locally on your device</li>
+    <li>Data is encrypted in transit using HTTPS/TLS</li>
+    <li>We apply access controls and industry-standard safeguards; no method is 100% secure</li>
+  </ul>
 
-  <h2>Children</h2>
-  <p>Gym Companion is not intended for users under 16.</p>
+  <h2>7. Data retention</h2>
+  <ul>
+    <li>Account and fitness data: retained while your account is active</li>
+    <li>After account deletion: we delete or anonymise associated data within a reasonable period, except where law requires retention</li>
+    <li>Analytics and crash logs: retained per Firebase default retention settings</li>
+  </ul>
 
+  <h2>8. Your rights</h2>
+
+  <h3>UK / EEA (GDPR)</h3>
+  <p>You have the right to:</p>
+  <ul>
+    <li><strong>Access</strong> — request a copy of your personal data</li>
+    <li><strong>Rectification</strong> — correct inaccurate data in the app or by contacting us</li>
+    <li><strong>Erasure</strong> — delete your account in Profile → Account → Delete account</li>
+    <li><strong>Restriction</strong> — ask us to limit processing in certain cases</li>
+    <li><strong>Data portability</strong> — export your data as CSV/PDF from Profile (Pro feature), or email <a href="mailto:support@gymcompanion.app">support@gymcompanion.app</a> for a portable copy</li>
+    <li><strong>Object</strong> — object to processing based on legitimate interests</li>
+    <li><strong>Withdraw consent</strong> — for location, camera, health, or notifications via device settings</li>
+    <li><strong>Complain</strong> — to the ICO (UK) or your local supervisory authority</li>
+  </ul>
+
+  <h3>California (CCPA/CPRA)</h3>
+  <p>California residents have the right to:</p>
+  <ul>
+    <li><strong>Know</strong> what personal information we collect and how it is used (see sections above)</li>
+    <li><strong>Delete</strong> personal information — use in-app account deletion or email us</li>
+    <li><strong>Correct</strong> inaccurate personal information</li>
+    <li><strong>Opt out of sale/share</strong> — we do <strong>not</strong> sell or share personal information for cross-context behavioural advertising</li>
+    <li><strong>Non-discrimination</strong> — we will not discriminate against you for exercising these rights</li>
+  </ul>
+  <p>To exercise CCPA rights, email <a href="mailto:support@gymcompanion.app">support@gymcompanion.app</a> with subject line "California Privacy Request". We will verify your request within the timeframes required by law.</p>
+
+  <h2>9. International transfers</h2>
+  <p>Some processors (including Firebase, Groq, and RevenueCat) are based in the United States. Where data is transferred outside the UK/EEA, we rely on appropriate safeguards such as Standard Contractual Clauses or equivalent mechanisms provided by our vendors.</p>
+
+  <h2>10. Children's privacy</h2>
+  <p>Gym Companion is not intended for anyone under 16. We do not knowingly collect data from children. Contact us if you believe a child has provided data and we will delete it.</p>
+
+  <h2>11. Changes to this policy</h2>
+  <p>We may update this policy from time to time. Material changes will be reflected by updating the date above. Continued use after changes constitutes acceptance.</p>
+
+  <h2>12. Contact</h2>
+  <p>Email: <a href="mailto:support@gymcompanion.app">support@gymcompanion.app</a></p>
   <p><a href="terms.html">Terms of Service</a></p>
 </body>
 </html>
