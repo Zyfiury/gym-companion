@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../theme/app_theme.dart';
+import '../utils/sheet_padding.dart';
 
 Future<void> showWaterLoggerSheet(BuildContext context) {
   final ctrl = TextEditingController();
@@ -14,9 +15,8 @@ Future<void> showWaterLoggerSheet(BuildContext context) {
     backgroundColor: context.appTheme.card,
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
     builder: (ctx) {
-      final bottomInset = MediaQuery.of(ctx).viewInsets.bottom;
       return Padding(
-        padding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: bottomInset + 24),
+        padding: sheetInsets(ctx),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,

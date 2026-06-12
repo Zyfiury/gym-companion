@@ -286,7 +286,11 @@ class _PaywallScreenState extends State<PaywallScreen> {
                       child: Row(
                         children: [
                           Expanded(
-                            child: GestureDetector(
+                            child: Semantics(
+                              identifier: 'paywall-monthly-tab',
+                              button: true,
+                              selected: !_annual,
+                              child: GestureDetector(
                               onTap: () => setState(() => _annual = false),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -304,9 +308,14 @@ class _PaywallScreenState extends State<PaywallScreen> {
                                 ),
                               ),
                             ),
+                            ),
                           ),
                           Expanded(
-                            child: GestureDetector(
+                            child: Semantics(
+                              identifier: 'paywall-annual-tab',
+                              button: true,
+                              selected: _annual,
+                              child: GestureDetector(
                               onTap: () => setState(() => _annual = true),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -327,6 +336,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                                   ],
                                 ),
                               ),
+                            ),
                             ),
                           ),
                         ],
@@ -357,14 +367,15 @@ class _PaywallScreenState extends State<PaywallScreen> {
 
                 children: [
 
-                  GradientButton(
-
-                    label: _loading ? 'Processing…' : 'Start Pro — $price',
-
-                    expanded: true,
-
-                    onPressed: _loading ? null : _purchase,
-
+                  Semantics(
+                    identifier: 'paywall-purchase-btn',
+                    button: true,
+                    label: 'Start Pro monthly subscription',
+                    child: GradientButton(
+                      label: _loading ? 'Processing…' : 'Start Pro — $price',
+                      expanded: true,
+                      onPressed: _loading ? null : _purchase,
+                    ),
                   ),
 
                   const SizedBox(height: 8),
@@ -374,9 +385,13 @@ class _PaywallScreenState extends State<PaywallScreen> {
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 11, color: t.textMuted),
                   ),
-                  TextButton(
-                    onPressed: _loading ? null : _restore,
-                    child: Text('Restore purchases', style: TextStyle(color: AppColors.violet)),
+                  Semantics(
+                    identifier: 'paywall-restore-btn',
+                    button: true,
+                    child: TextButton(
+                      onPressed: _loading ? null : _restore,
+                      child: Text('Restore purchases', style: TextStyle(color: AppColors.violet)),
+                    ),
                   ),
 
                 ],

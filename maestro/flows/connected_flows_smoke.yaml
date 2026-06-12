@@ -1,0 +1,50 @@
+appId: com.gymcompanion.gym_companion
+---
+# Smoke test for Connected Flows: home calories, workout detail, feed compose types.
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "fill-test-account"
+    direction: DOWN
+- tapOn:
+    id: "fill-test-account"
+- tapOn:
+    id: "login-submit"
+- extendedWaitUntil:
+    visible:
+      id: "home-greeting"
+    timeout: 20000
+- assertVisible:
+    id: "workout-today-card"
+- scrollUntilVisible:
+    element:
+      id: "workout-today-card"
+    direction: DOWN
+- tapOn:
+    id: "workout-today-card"
+- extendedWaitUntil:
+    visible:
+      id: "workout-mark-complete"
+    timeout: 8000
+- back
+- tapOn:
+    id: "tab-feed"
+- extendedWaitUntil:
+    visible:
+      id: "feed-create-btn"
+    timeout: 8000
+- tapOn:
+    id: "feed-create-btn"
+- extendedWaitUntil:
+    visible:
+      id: "feed-xp-hint"
+    timeout: 5000
+- assertVisible: "+5 XP"
+- tapOn:
+    id: "feed-post-type-workout"
+- back

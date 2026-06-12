@@ -1,4 +1,4 @@
-{
+﻿{
   "project_info": {
     "project_number": "928816456435",
     "project_id": "gym-b541e",
@@ -19,6 +19,22 @@
           "android_info": {
             "package_name": "com.gymcompanion.gym_companion",
             "certificate_hash": "f9677b54dd2b6554fb6f5d73d1c42acc63e03feb"
+          }
+        },
+        {
+          "client_id": "928816456435-fomlhbtmaav0136lq0o4itoodfh1nftl.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.gymcompanion.gym_companion",
+            "certificate_hash": "866f27624b5f747f9cf1d1bfd40221fec4d16ea4"
+          }
+        },
+        {
+          "client_id": "928816456435-g8shdma3bidr219047cp693dod1no76k.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.gymcompanion.gym_companion",
+            "certificate_hash": "558a8173314c61cf119f3ce11ba6785bf9ee21f9"
           }
         },
         {

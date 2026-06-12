@@ -241,6 +241,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           user: u,
           displayName: displayName,
           onEdit: _openEditSheet,
+          onAvatarTap: () async {
+            final updated = await context.read<AppState>().updateAvatar(context);
+            if (updated && context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile photo updated ✓')));
+            }
+          },
         );
       case 1:
         return ProfileNutritionTab(

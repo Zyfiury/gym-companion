@@ -37,6 +37,29 @@ class UkGroceryPrices {
     'wrap': 1.20,
     'tortilla': 1.10,
     'berries': 2.50,
+    'quinoa': 1.80,
+    'avocado': 1.20,
+    'asparagus': 1.60,
+    'zucchini': 0.90,
+    'cod': 4.50,
+    'green beans': 1.00,
+    'chickpeas': 0.75,
+    'coconut milk': 1.10,
+    'turkey': 4.00,
+    'bagel': 1.50,
+    'cream cheese': 1.40,
+    'smoked salmon': 4.50,
+    'lettuce': 0.90,
+    'mixed greens': 1.50,
+    'kale': 1.00,
+    'lean beef': 5.00,
+    'peppers': 1.50,
+    'rice noodles': 1.20,
+    'egg whites': 2.50,
+    'whey protein': 15.00,
+    'balsamic': 2.00,
+    'pork tenderloin': 5.50,
+    'mixed salad': 1.50,
     'protein powder': 18.00,
     'protein bar': 2.00,
   };
@@ -68,6 +91,7 @@ class UkGroceryPrices {
     for (final e in _storeMultiplier.entries) {
       if (lower.contains(e.key)) return e.value;
     }
+    // Unknown / independent shops — use UK average baseline.
     return 1.0;
   }
 

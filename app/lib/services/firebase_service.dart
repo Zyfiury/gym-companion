@@ -16,6 +16,14 @@ class FirebaseService {
   static FirebaseAuth get auth => FirebaseAuth.instance;
   static FirebaseFirestore get db => FirebaseFirestore.instance;
 
+  /// Web client ID from `google-services.json` — required for Firebase Google Sign-In id tokens.
+  static const _googleWebClientId =
+      '928816456435-bktcdi6j6b9bbc3lpkjck25mck1ddl8m.apps.googleusercontent.com';
+
+  static final GoogleSignIn _googleSignIn = GoogleSignIn(
+    serverClientId: _googleWebClientId,
+  );
+
   static const _firestoreTimeout = Duration(seconds: 10);
 
   /// Firestore writes must never block auth — API may be disabled or rules pending.
@@ -69,8 +77,7 @@ class FirebaseService {
   }
 
   static Future<UserCredential> signInWithGoogle() async {
-    final googleSignIn = GoogleSignIn();
-    final googleUser = await googleSignIn.signIn();
+    final googleUser = await _googleSignIn.signIn();
     if (googleUser == null) {
       throw FirebaseAuthException(code: 'cancelled', message: 'Sign in cancelled');
     }
@@ -124,7 +131,7 @@ class FirebaseService {
   static Future<void> deleteAccount(String uid) async {
     final batch = db.batch();
     final userRef = db.collection('users').doc(uid);
-    final subcollections = ['daily_logs', 'weight_history', 'weekly_plans', 'meta', 'personal_records', 'completed_exercises'];
+    final subcollections = ['daily_logs', 'weight_history', 'weekly_plans', 'meta', 'personal_records', 'completed_exercises', 'food_entries', 'workout_sessions'];
     for (final sub in subcollections) {
       final snap = await userRef.collection(sub).get();
       for (final doc in snap.docs) {
@@ -144,12 +151,12 @@ class FirebaseService {
         rethrow;
       }
     }
-    await GoogleSignIn().signOut();
+    await _googleSignIn.signOut();
     await auth.signOut();
   }
 
   static Future<void> signOut() async {
-    await GoogleSignIn().signOut();
+    await _googleSignIn.signOut();
     await auth.signOut();
   }
 
@@ -170,6 +177,14 @@ class FirebaseService {
         'fat': log['fat_logged'] ?? 0,
       };
       data['foodLog'] = log['food_log'] ?? [];
+      data['todayActivityLog'] = {
+        'step_calories': log['step_calories'],
+        'workout_calories': log['workout_calories'],
+        'workout_status': log['workout_status'],
+        'workout_name': log['workout_name'],
+        'workout_session_id': log['workout_session_id'],
+        'workout_session': log['workout_session'],
+      };
       final qs = data['quickStats'] as Map<String, dynamic>? ?? {};
       qs['water'] = log['water_ml'] ?? qs['water'] ?? 0;
       data['quickStats'] = qs;
@@ -200,14 +215,14 @@ class FirebaseService {
     return UserData.fromJson(Map<String, dynamic>.from(data));
   }
 
-  static Future<void> saveUserData(UserData data) async {
+  static Future<void> saveUserData(UserData data, {Map<String, dynamic>? activityFields}) async {
     final uid = data.userId;
     if (uid.isEmpty) return;
     final json = data.toJson()..remove('userId');
     await _firestoreOp('saveUserData', () async {
       await db.collection('users').doc(uid).set(json, SetOptions(merge: true));
       final today = DateTime.now().toIso8601String().substring(0, 10);
-      await db.collection('users').doc(uid).collection('daily_logs').doc(today).set({
+      final dailyPayload = {
         'date': today,
         'calories_logged': data.dailyMacrosLogged.calories,
         'protein_logged': data.dailyMacrosLogged.protein,
@@ -216,9 +231,55 @@ class FirebaseService {
         'food_log': data.foodLog,
         'water_ml': data.water.round(),
         'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+        if (activityFields != null) ...activityFields,
+      };
+      await db.collection('users').doc(uid).collection('daily_logs').doc(today).set(
+            dailyPayload,
+            SetOptions(merge: true),
+          );
       await syncPublicProfile(uid, data.gamification['xp'] as int? ?? 0, data.gamification['level'] as int? ?? 1);
     });
+  }
+
+  static Future<String> createFoodEntry(String uid, Map<String, dynamic> entry) async {
+    final ref = await db.collection('users').doc(uid).collection('food_entries').add({
+      ...entry,
+      'recorded_at': FieldValue.serverTimestamp(),
+    });
+    return ref.id;
+  }
+
+  static Future<String> createWorkoutSession(String uid, Map<String, dynamic> session) async {
+    final ref = await db.collection('users').doc(uid).collection('workout_sessions').add({
+      ...session,
+      'recorded_at': FieldValue.serverTimestamp(),
+    });
+    return ref.id;
+  }
+
+  static Future<List<Map<String, dynamic>>> fetchTodayFoodEntries(String uid) async {
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final snap = await db
+        .collection('users')
+        .doc(uid)
+        .collection('food_entries')
+        .where('date', isEqualTo: today)
+        .get();
+    return snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+  }
+
+  static Future<Map<String, dynamic>?> fetchTodayWorkoutSession(String uid) async {
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final snap = await db
+        .collection('users')
+        .doc(uid)
+        .collection('workout_sessions')
+        .where('date', isEqualTo: today)
+        .orderBy('recorded_at', descending: true)
+        .limit(1)
+        .get();
+    if (snap.docs.isEmpty) return null;
+    return {'id': snap.docs.first.id, ...snap.docs.first.data()};
   }
 
   static Future<void> syncPublicProfile(String uid, int xp, int level) async {
@@ -255,18 +316,19 @@ class FirebaseService {
     await db.collection('users').doc(uid).update({'weight': latest});
   }
 
-  static Future<void> logPersonalRecord(String uid, {
+  static Future<String> logPersonalRecord(String uid, {
     required String exerciseName,
     required double value,
     required String unit,
   }) async {
-    await db.collection('users').doc(uid).collection('personal_records').add({
+    final ref = await db.collection('users').doc(uid).collection('personal_records').add({
       'exercise_name': exerciseName,
       'value': value,
       'unit': unit,
       'date': DateTime.now().toIso8601String().substring(0, 10),
       'recorded_at': FieldValue.serverTimestamp(),
     });
+    return ref.id;
   }
 
   static Future<void> logCompletedExercise(String uid, {
@@ -369,6 +431,8 @@ class FirebaseService {
     String? postType,
     Map<String, dynamic>? structuredContent,
     String? caption,
+    String? activityId,
+    String? activityCollection,
   }) async {
     await db.collection('feed_posts').add({
       'authorId': uid,
@@ -377,6 +441,8 @@ class FirebaseService {
       'caption': caption,
       'postType': postType ?? type,
       'structuredContent': structuredContent,
+      if (activityId != null) 'activityId': activityId,
+      if (activityCollection != null) 'activityCollection': activityCollection,
       'likes': <String>[],
       'comments': <Map<String, dynamic>>[],
       'type': type,

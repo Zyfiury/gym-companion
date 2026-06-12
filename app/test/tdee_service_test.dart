@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gym_companion/models/user_data.dart';
 import 'package:gym_companion/services/tdee_service.dart';
 
 void main() {
@@ -10,9 +11,9 @@ void main() {
     expect(tdee, greaterThan(bmr));
   });
 
-  test('goal offset cut reduces calories', () {
-    expect(TdeeService.applyGoalOffset(2200, 'cut'), 1700);
-    expect(TdeeService.applyGoalOffset(2200, 'bulk'), 2500);
+  test('goal offset cut reduces calories by 20%', () {
+    expect(TdeeService.applyGoalOffset(2200, 'cut'), 1760);
+    expect(TdeeService.applyGoalOffset(2200, 'bulk'), 2530);
   });
 
   test('plan applies Mifflin-St Jeor then goal offset', () {
@@ -25,8 +26,16 @@ void main() {
     );
     expect(plan.maintenance, greaterThan(1800));
     expect(plan.maintenance, lessThan(2400));
-    expect(plan.target, plan.maintenance - 500);
+    expect(plan.target, (plan.maintenance * 0.8).round());
     expect(plan.target, lessThan(plan.maintenance));
+  });
+
+  test('recalculateFromUser updates macros from weight', () {
+    final user = UserData.defaults()..weight = 80;
+    final result = TdeeService.recalculateFromUser(user);
+    expect(result.plan.target, greaterThan(1500));
+    expect(result.macros['calories'], result.plan.target);
+    expect(result.macros['protein'], 160);
   });
 
   test('female BMR is lower than male at same stats', () {

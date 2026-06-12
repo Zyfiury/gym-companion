@@ -7,6 +7,7 @@ import '../../providers/app_state.dart';
 import '../../services/export_service.dart';
 import '../../services/subscription_service.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/sheet_padding.dart';
 import '../../utils/pro_gate.dart';
 import '../../widgets/page_transitions.dart';
 import '../../widgets/premium_ui.dart';
@@ -58,7 +59,7 @@ class ProfileAccountTab extends StatelessWidget {
     final t = context.appTheme;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      padding: EdgeInsets.fromLTRB(16, 8, 16, scrollBottomInset(context, extra: 24)),
       children: [
         StaggeredEntry(
           index: 0,

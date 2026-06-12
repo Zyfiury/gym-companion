@@ -1,5 +1,8 @@
 import 'dart:convert';
 
+import '../services/shopping_list_service.dart';
+import '../services/store_service.dart';
+
 class MacroLog {
   int calories;
   int protein;
@@ -215,6 +218,7 @@ class WeeklyPlan {
 class UserData {
   String userId;
   bool profileComplete;
+  String? avatarPath;
   String goal;
   double weight;
   double height;
@@ -255,6 +259,7 @@ class UserData {
   UserData({
     this.userId = '',
     this.profileComplete = false,
+    this.avatarPath,
     this.goal = '',
     this.weight = 70,
     this.height = 175,
@@ -301,6 +306,36 @@ class UserData {
         weightHistory = weightHistory ?? [];
 
   factory UserData.defaults() {
+    final meals = [
+      Meal(
+        mealType: 'Breakfast',
+        name: 'Greek Yogurt Bowl',
+        description: 'High protein start',
+        macros: {'calories': 420, 'protein': 35, 'carbs': 45, 'fat': 10},
+        ingredients: ['greek yogurt', 'berries', 'oats'],
+        youtubeVideoId: 'dQw4w9WgXcQ',
+        steps: ['Add yogurt to a bowl', 'Top with berries and oats'],
+      ),
+      Meal(
+        mealType: 'Lunch',
+        name: 'Chicken Rice Bowl',
+        description: 'Balanced midday meal',
+        macros: {'calories': 650, 'protein': 45, 'carbs': 70, 'fat': 18},
+        ingredients: ['chicken breast', 'rice', 'broccoli'],
+        youtubeVideoId: 'dQw4w9WgXcQ',
+        steps: ['Grill chicken breast', 'Cook rice', 'Steam broccoli and serve together'],
+      ),
+      Meal(
+        mealType: 'Dinner',
+        name: 'Salmon & Quinoa',
+        description: 'Omega-3 dinner',
+        macros: {'calories': 520, 'protein': 42, 'carbs': 40, 'fat': 18},
+        ingredients: ['salmon', 'quinoa', 'asparagus'],
+        youtubeVideoId: 'dQw4w9WgXcQ',
+        steps: ['Pan-sear salmon', 'Cook quinoa', 'Roast asparagus and plate up'],
+      ),
+    ];
+    final shoppingList = ShoppingListService.buildFromMeals(meals, store: StoreService.defaultLabel);
     return UserData(
       weeklyPlan: WeeklyPlan(
         macros: {'calories': 2200, 'protein': 140, 'carbs': 220, 'fat': 65},
@@ -313,32 +348,8 @@ class UserData {
           WorkoutDay(day: 'Sat', focus: 'Legs', exercises: ['Leg Press 4×12', 'Calf Raise 4×15']),
           WorkoutDay(day: 'Sun', focus: 'Rest', exercises: ['Walk 30 min', 'Stretch 15 min']),
         ],
-        meals: [
-          Meal(
-            mealType: 'Breakfast',
-            name: 'Greek Yogurt Bowl',
-            description: 'High protein start',
-            macros: {'calories': 420, 'protein': 35, 'carbs': 45, 'fat': 10},
-            youtubeVideoId: 'dQw4w9WgXcQ',
-            steps: ['Add yogurt', 'Top with berries'],
-          ),
-          Meal(
-            mealType: 'Lunch',
-            name: 'Chicken Rice Bowl',
-            description: 'Balanced midday meal',
-            macros: {'calories': 650, 'protein': 45, 'carbs': 70, 'fat': 18},
-            youtubeVideoId: 'dQw4w9WgXcQ',
-            steps: ['Grill chicken', 'Serve over rice'],
-          ),
-        ],
-        shoppingList: {
-          'supermarket': 'Tesco',
-          'totalEstimatedCost': '£12.40',
-          'items': [
-            {'item': 'Chicken breast 500g', 'quantity': '1', 'price': '£3.50'},
-            {'item': 'Greek yogurt 500g', 'quantity': '1', 'price': '£1.80'},
-          ],
-        },
+        meals: meals,
+        shoppingList: shoppingList,
       ),
     );
   }
@@ -346,6 +357,7 @@ class UserData {
   Map<String, dynamic> toJson() => {
         'userId': userId,
         'profileComplete': profileComplete,
+        if (avatarPath != null) 'avatarPath': avatarPath,
         'goal': goal,
         'weight': weight,
         'height': height,
@@ -388,6 +400,7 @@ class UserData {
     return UserData(
       userId: j['userId'] as String? ?? '',
       profileComplete: j['profileComplete'] as bool? ?? false,
+      avatarPath: j['avatarPath'] as String?,
       goal: j['goal'] as String? ?? '',
       weight: (j['weight'] as num?)?.toDouble() ?? 70,
       height: (j['height'] as num?)?.toDouble() ?? 175,

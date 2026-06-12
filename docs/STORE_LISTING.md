@@ -9,11 +9,22 @@
 
 ## Required graphics
 
+**Generated assets** (run `python scripts/generate_store_assets.py`):
+
+| Asset | Path |
+|-------|------|
+| Feature graphic | `store-listing/feature-graphic-1024x500.png` |
+| App icon 512 | `store-listing/icon-512.png` |
+| App icon 1024 | `store-listing/icon-1024.png` |
+| Screenshot placeholders | `store-listing/screenshots/*-PLACEHOLDER.png` — **replace with real device captures** |
+
+See [`SCREENSHOT_GUIDE.md`](SCREENSHOT_GUIDE.md) for capture instructions.
+
 | Asset | Specification |
 |-------|---------------|
-| Phone screenshots | 6–8 portrait images, min 1080×1920 or 1440×2560. Suggested screens: Home, Coach, Food, Progress, Profile, Paywall |
-| Feature graphic | 1024×500 PNG or JPG |
-| App icon | 512×512 PNG (high-res: export 1024×1024 from `app/assets/icon/app_icon.png`) |
+| Phone screenshots | 6–8 portrait, min 1080×1920 — Home, Coach, Food, Workout, Progress, Profile, Paywall, Feed |
+| Feature graphic | 1024×500 PNG |
+| App icon | 512×512 PNG |
 
 ---
 
@@ -45,6 +56,8 @@ Not medical advice. Consult a professional before starting any program.
 ---
 
 ## Data safety form
+
+**Full step-by-step answers:** [`DATA_SAFETY_FORM.md`](DATA_SAFETY_FORM.md)
 
 Play Console → **App content → Data safety**
 
@@ -85,6 +98,12 @@ app/build/app/outputs/bundle/release/app-release.aab
 ```powershell
 java -jar bundletool.jar validate --bundle="app\build\app\outputs\bundle\release\app-release.aab"
 ```
+
+---
+
+## Pre-production gate
+
+**Before Production:** complete [`PRE_PRODUCTION_TEST.md`](PRE_PRODUCTION_TEST.md) — especially **purchase flow on a real device** via Internal testing.
 
 ---
 

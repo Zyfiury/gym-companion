@@ -20,6 +20,8 @@ class DeliveryOption {
   final String uberEatsUrl;
   final String deliverooUrl;
   final String justEatUrl;
+  final String mapsUrl;
+  final bool isEatOut;
   final bool macrosEstimated;
   final String? nutritionSource;
 
@@ -37,6 +39,8 @@ class DeliveryOption {
     required this.uberEatsUrl,
     required this.deliverooUrl,
     required this.justEatUrl,
+    required this.mapsUrl,
+    this.isEatOut = false,
     this.distanceKm,
     this.macrosEstimated = true,
     this.nutritionSource,
@@ -58,6 +62,8 @@ class DeliveryOption {
         'uberEatsUrl': uberEatsUrl,
         'deliverooUrl': deliverooUrl,
         'justEatUrl': justEatUrl,
+        'mapsUrl': mapsUrl,
+        'isEatOut': isEatOut,
         'macrosEstimated': macrosEstimated,
         'nutritionSource': nutritionSource,
       };
@@ -167,6 +173,8 @@ class DeliveryService {
         uberEatsUrl: _uberEatsUrl(r.name, areaLabel),
         deliverooUrl: _deliverooUrl(r.name),
         justEatUrl: _justEatUrl(r.name, areaLabel),
+        mapsUrl: _mapsUrl(r.name, r.placeId),
+        isEatOut: dineIn,
         macrosEstimated: !nutrition.isVerified,
         nutritionSource: sourceLabel,
       ));
@@ -207,7 +215,7 @@ class DeliveryService {
     }
 
     buffer.writeln();
-    buffer.writeln('Tap a platform below to order 👇');
+    buffer.writeln(dineIn ? 'Tap a place to open in Maps, or log the dish 👇' : 'Tap to order or log the dish 👇');
 
     return DeliveryResult(reply: buffer.toString(), options: top, areaLabel: areaLabel);
   }
@@ -259,5 +267,13 @@ class DeliveryService {
   static String _justEatUrl(String restaurant, String? area) {
     final q = Uri.encodeComponent(area != null ? '$restaurant $area' : restaurant);
     return 'https://www.just-eat.co.uk/search?q=$q';
+  }
+
+  static String _mapsUrl(String restaurant, String placeId) {
+    final query = Uri.encodeComponent(restaurant);
+    if (placeId.isNotEmpty) {
+      return 'https://www.google.com/maps/search/?api=1&query=$query&query_place_id=$placeId';
+    }
+    return 'https://www.google.com/maps/search/?api=1&query=$query';
   }
 }

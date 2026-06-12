@@ -5,9 +5,13 @@ import '../models/user_data.dart';
 import '../providers/app_state.dart';
 import '../services/grocery_service.dart';
 import '../services/meal_variety_service.dart';
+import '../services/places_service.dart';
+import '../services/shopping_list_service.dart';
+import '../services/store_service.dart';
 import '../services/youtube_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/pro_gate.dart';
+import '../utils/sheet_padding.dart';
 import '../widgets/meal_month_chart.dart';
 import '../widgets/meal_week_view.dart';
 import '../widgets/meals/nutrition_mode_panel.dart';
@@ -31,6 +35,13 @@ class _MealsScreenState extends State<MealsScreen> {
   String? _videoId;
   String? _videoThumb;
   bool _loadingVideo = false;
+  String? _selectedStore;
+  List<NearbySupermarket> _nearbyStores = [];
+  bool _loadingStores = false;
+
+  String _activeStore(AppState state) {
+    return _selectedStore ?? StoreService.resolveStoreName(state.user!);
+  }
 
   List<Meal> _mealsForView(AppState state) {
     final u = state.user!;
@@ -55,13 +66,111 @@ class _MealsScreenState extends State<MealsScreen> {
     if (planView == _PlanView.month && u.monthlyPlan?.shoppingList != null) {
       return u.monthlyPlan!.shoppingList;
     }
-    return state.user!.weeklyPlan.shoppingList;
+    final meals = _mealsForView(state);
+    if (meals.isEmpty) return u.weeklyPlan.shoppingList;
+    return ShoppingListService.buildFromMeals(meals, store: _activeStore(state));
+  }
+
+  Future<void> _loadNearbyStores() async {
+    setState(() => _loadingStores = true);
+    final state = context.read<AppState>();
+    final saved = StoreService.resolveStoreName(state.user!);
+    final stores = await StoreService.nearbyStores();
+    if (!mounted) return;
+    setState(() {
+      _nearbyStores = stores;
+      _selectedStore = saved != StoreService.defaultLabel
+          ? saved
+          : (stores.isNotEmpty ? stores.first.name : StoreService.defaultLabel);
+      _loadingStores = false;
+    });
+  }
+
+  Future<void> _selectStore(String storeName) async {
+    setState(() => _selectedStore = storeName);
+    final state = context.read<AppState>();
+    final meals = state.user!.weeklyPlan.meals;
+    final list = ShoppingListService.buildFromMeals(_mealsForView(state), store: storeName);
+    await state.patchUser((u) {
+      u.weeklyPlan = WeeklyPlan(
+        macros: u.weeklyPlan.macros,
+        workouts: u.weeklyPlan.workouts,
+        meals: meals,
+        shoppingList: list,
+        deliveryOptions: u.weeklyPlan.deliveryOptions,
+      );
+    });
+  }
+
+  Future<void> _showStorePicker() async {
+    if (_nearbyStores.isEmpty && !_loadingStores) {
+      await _loadNearbyStores();
+    }
+    if (!mounted) return;
+    final t = context.appTheme;
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: t.card,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        final options = _nearbyStores.isEmpty
+            ? [StoreService.defaultLabel]
+            : _nearbyStores.map((s) => s.name).toList();
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                child: Text('Choose where to shop', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: t.textPrimary)),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                child: Text(
+                  'Any supermarket or grocery shop near you — not limited to big chains.',
+                  style: TextStyle(fontSize: 12, color: t.textSecondary, height: 1.35),
+                ),
+              ),
+              ...options.map((name) {
+                NearbySupermarket? match;
+                for (final s in _nearbyStores) {
+                  if (s.name == name) {
+                    match = s;
+                    break;
+                  }
+                }
+                final dist = match?.distanceKm;
+                return ListTile(
+                  title: Text(name, style: TextStyle(color: t.textPrimary)),
+                  subtitle: dist != null ? Text('${dist.toStringAsFixed(1)} km away', style: TextStyle(color: t.textMuted)) : null,
+                  trailing: _activeStore(context.read<AppState>()) == name ? const Icon(Icons.check, color: AppColors.accent) : null,
+                  onTap: () => Navigator.pop(ctx, name),
+                );
+              }),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+    if (picked != null) await _selectStore(picked);
+  }
+
+  String? _placeIdForStore(String storeName) {
+    for (final store in _nearbyStores) {
+      if (store.name == storeName) return store.placeId;
+    }
+    return null;
   }
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadVideo());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadVideo();
+      _loadNearbyStores();
+    });
   }
 
   Future<void> _onPlanViewChanged(_PlanView v) async {
@@ -108,7 +217,7 @@ class _MealsScreenState extends State<MealsScreen> {
       backgroundColor: t.card,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(20),
+        padding: sheetInsets(ctx, horizontal: 20, top: 20, extra: 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -201,7 +310,7 @@ class _MealsScreenState extends State<MealsScreen> {
       backgroundColor: t.card,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(20),
+        padding: sheetInsets(ctx, horizontal: 20, top: 20, extra: 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -331,20 +440,31 @@ class _MealsScreenState extends State<MealsScreen> {
             const SizedBox(height: 10),
             StaggeredEntry(
               index: 2,
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppColors.accent.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(20),
+              child: InkWell(
+                onTap: _showStorePicker,
+                borderRadius: BorderRadius.circular(20),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.accent.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '${shoppingList['supermarket']} · ${shoppingList['totalEstimatedCost'] ?? ''}',
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.accent),
+                          ),
+                          const SizedBox(width: 2),
+                          const Icon(Icons.arrow_drop_down, size: 16, color: AppColors.accent),
+                        ],
+                      ),
                     ),
-                    child: Text(
-                      '${shoppingList['supermarket']} · ${shoppingList['totalEstimatedCost'] ?? ''}',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.accent),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
@@ -584,11 +704,29 @@ class _MealsScreenState extends State<MealsScreen> {
                 icon: Icons.shopping_bag_outlined,
                 title: shoppingList['supermarket'] as String? ?? 'Shopping',
                 subtitle: shoppingList['estimated'] == true
-                    ? '${shoppingList['totalEstimatedCost'] ?? ''} · estimated prices'
-                    : shoppingList['totalEstimatedCost'] as String? ?? '',
+                    ? '${shoppingList['totalEstimatedCost'] ?? ''} · ${shoppingList['ingredientCount'] ?? ((shoppingList['items'] as List?)?.length ?? 0)} items · estimated'
+                    : '${shoppingList['totalEstimatedCost'] ?? ''} · ${shoppingList['ingredientCount'] ?? ((shoppingList['items'] as List?)?.length ?? 0)} items',
                 open: shopOpen,
                 onToggle: (v) => setState(() => shopOpen = v),
                 children: [
+                  ListTile(
+                    dense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                    leading: const Icon(Icons.store_outlined, color: AppColors.accent, size: 20),
+                    title: Text(
+                      _activeStore(state),
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: t.textPrimary),
+                    ),
+                    subtitle: Text(
+                      _nearbyStores.isEmpty ? 'Tap to set your shop' : 'Tap to switch shop (${_nearbyStores.length} nearby)',
+                      style: TextStyle(fontSize: 11, color: t.textMuted),
+                    ),
+                    trailing: _loadingStores
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        : Icon(Icons.chevron_right, color: t.textMuted, size: 20),
+                    onTap: _showStorePicker,
+                  ),
+                  Divider(height: 1, color: t.borderSubtle),
                   ...((shoppingList['items'] as List?) ?? []).map((item) {
                     final m = item as Map;
                     return Padding(
@@ -607,8 +745,12 @@ class _MealsScreenState extends State<MealsScreen> {
                       style: OutlinedButton.styleFrom(foregroundColor: AppColors.accent, side: BorderSide(color: t.borderSubtle)),
                       onPressed: () {
                         final items = ((shoppingList['items'] as List?) ?? []).map((e) => '${(e as Map)['item']}').cast<String>().toList();
-                        final store = shoppingList['supermarket'] as String? ?? 'Tesco';
-                        GroceryService.orderShoppingList(items, store: store);
+                        final store = _activeStore(state);
+                        GroceryService.orderShoppingList(
+                          items,
+                          store: store,
+                          placeId: _placeIdForStore(store),
+                        );
                       },
                       icon: const Icon(Icons.shopping_cart_outlined, size: 18),
                       label: Text('Shop at ${shoppingList['supermarket'] ?? 'store'}'),

@@ -27,10 +27,11 @@ appId: com.gymcompanion.gym_companion
 - tapOn:
     id: "feed-create-btn"
 - extendedWaitUntil:
-    visible: "Share with the community"
+    visible:
+      id: "feed-compose-title"
     timeout: 5000
 - tapOn:
-    id: "feed-post-type-motivation"
+    id: "feed-post-type-general"
 - extendedWaitUntil:
     visible:
       id: "feed-post-input"

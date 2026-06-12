@@ -1,3 +1,5 @@
+import '../models/user_data.dart';
+
 /// Maintenance + goal-adjusted calorie targets from body metrics.
 class CaloriePlan {
   final int maintenance;
@@ -43,9 +45,22 @@ class TdeeService {
   }
 
   static int applyGoalOffset(int maintenance, String goal) {
-    if (goal == 'cut') return (maintenance - 500).clamp(1200, 10000);
-    if (goal == 'bulk') return maintenance + 300;
+    if (goal == 'cut') return (maintenance * 0.8).round().clamp(1200, 10000);
+    if (goal == 'bulk') return (maintenance * 1.15).round();
     return maintenance;
+  }
+
+  /// Recalculate maintenance + target + macros from current profile weight.
+  static ({CaloriePlan plan, Map<String, int> macros}) recalculateFromUser(UserData u) {
+    final caloriePlan = plan(
+      weightKg: u.weight,
+      heightCm: u.height,
+      age: u.age,
+      goal: u.goal.isEmpty ? 'maintain' : u.goal,
+      genderAtBirth: u.genderAtBirth,
+    );
+    final macros = deriveMacros(calories: caloriePlan.target, weightKg: u.weight);
+    return (plan: caloriePlan, macros: macros);
   }
 
   /// Mifflin-St Jeor maintenance TDEE, then goal offset for daily target.
@@ -95,10 +110,10 @@ class TdeeService {
 
   static String planSubtitle(CaloriePlan plan) {
     if (plan.goal == 'cut') {
-      return 'Maintenance ${plan.maintenance} kcal · −500 for cut';
+      return 'Maintenance ${plan.maintenance} kcal · −20% for cut';
     }
     if (plan.goal == 'bulk') {
-      return 'Maintenance ${plan.maintenance} kcal · +300 for bulk';
+      return 'Maintenance ${plan.maintenance} kcal · +15% for bulk';
     }
     return 'Based on ${plan.maintenance} kcal maintenance (Mifflin-St Jeor)';
   }

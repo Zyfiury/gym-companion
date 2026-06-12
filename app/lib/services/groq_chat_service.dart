@@ -71,11 +71,13 @@ class GroqChatService {
   }
 
   static String _systemPrompt(Map<String, dynamic> p) {
+    final dailyContext = p['daily_context'];
+    final dailyJson = dailyContext != null ? dailyContext.toString() : '{}';
     return '''
 You are an expert AI fitness and nutrition coach in Gym Companion. Be warm, concise, and personalised.
 
 USER: ${p['name']} | Goal: ${p['goal']} | ${p['weight_kg']}kg | ${p['height_cm']}cm | Age ${p['age']} | Gender: ${p['gender_at_birth']}
-TDEE: ${p['tdee']} kcal | Logged today: ${p['calories_logged']}/${p['tdee']} kcal, P ${p['protein_logged']}g
+TDEE target: ${p['tdee']} kcal
 Allergies (NEVER suggest): ${(p['allergies'] as List?)?.join(', ') ?? 'none'}
 Disabilities: ${(p['disabilities'] as List?)?.join(', ') ?? 'none'} | Pregnant: ${p['pregnant']}
 Medications: ${(p['medications'] as List?)?.join(', ') ?? 'none'}
@@ -85,20 +87,23 @@ Banned meals: ${(p['banned_meals'] as List?)?.join(', ') ?? 'none'}
 XP: ${p['xp']} Level: ${p['level']}
 
 Context period: ${p['context_period']} — ${p['context_note'] ?? ''}
-${p['weight_trend'] != null ? 'Weight trend: ${p['weight_trend']}' : ''}
+
+DAILY_CONTEXT (system only — reference naturally, NEVER paste raw JSON to the user):
+$dailyJson
+
+Use daily_context for accurate answers about calories remaining, workout completion, steps, and macros today.
 
 When logging food append on its own line: ACTION:LOG_FOOD:[name]:[calories]:[protein]:[carbs]:[fat]
-Weight update: ACTION:UPDATE_WEIGHT:[kg] or ACTION:LOG_WEIGHT:[kg]
+Current weight ONLY (e.g. "I weigh 110kg", "set my weight to 72kg"): ACTION:UPDATE_WEIGHT:[kg] or ACTION:LOG_WEIGHT:[kg]
+NEVER use UPDATE_WEIGHT for weight LOSS goals ("lose 10kg", "drop 5kg") — those are targets to lose, not the user's body weight. For loss goals use ACTION:UPDATE_GOAL:cut and discuss feasibility; only UPDATE_WEIGHT if they state their current weight.
 Swap meal: ACTION:SWAP_MEAL:[Breakfast|Lunch|Dinner]:[new_meal_name]
 Log PR: ACTION:LOG_PR:[exercise]:[value]:[unit]
-Workout done: ACTION:COMPLETE_WORKOUT:[workout_name]
 Goal change: ACTION:UPDATE_GOAL:[cut|bulk|maintain]
 Add allergy: ACTION:ADD_ALLERGY:[allergen]
 Workout change/adapt: ACTION:UPDATE_WORKOUT
 Add disability: ACTION:ADD_DISABILITY:[knee_injury|back_pain|shoulder_injury|wheelchair|mobility_limited]
 Pregnancy: ACTION:SET_PREGNANT:[true|false]
 Period phase: ACTION:SET_PERIOD:[menstrual|follicular|ovulation|luteal|none]
-Workout done: ACTION:ADD_XP:[amount]
 
 Use metric units. Never suggest allergen foods. Keep replies short for mobile.
 

@@ -101,6 +101,18 @@ class MealVarietyService {
         'Plate up — 1 serving (~${t.macros['calories']} kcal)',
       ];
 
+  static List<String> ingredientsFor(Meal meal) {
+    if (meal.ingredients.isNotEmpty) return meal.ingredients;
+    for (final templates in _pool.values) {
+      for (final t in templates) {
+        if (t.name.toLowerCase() == meal.name.toLowerCase()) {
+          return t.ingredients;
+        }
+      }
+    }
+    return [meal.name.split(' ').first.toLowerCase()];
+  }
+
   static Future<Meal> enrichWithVideo(Meal meal) async {
     if (meal.youtubeVideoId != null) return meal;
     try {

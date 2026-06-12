@@ -12,7 +12,7 @@ class BudgetStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final stores = ['Tesco', 'Aldi', "Sainsbury's", 'Lidl'];
+    final stores = ['Any nearby shop', 'Supermarkets', 'Local grocers', 'Markets'];
     final activeCount = weeklyBudget < 40 ? 2 : weeklyBudget < 80 ? 3 : 4;
 
     return Column(
@@ -21,7 +21,7 @@ class BudgetStep extends StatelessWidget {
         ObsidianStepHeader(
           category: 'Budget',
           title: 'Weekly food budget',
-          subtitle: 'We prioritise affordable shops within your range.',
+          subtitle: 'We find the best value at shops near you — chains, independents, and local grocers.',
           index: 5,
         )
             .animate()

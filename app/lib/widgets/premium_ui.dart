@@ -63,6 +63,7 @@ class MacroRing extends StatelessWidget {
   final String sublabel;
   final Color color;
   final double size;
+  final int pulseTrigger;
 
   const MacroRing({
     super.key,
@@ -72,11 +73,19 @@ class MacroRing extends StatelessWidget {
     required this.sublabel,
     required this.color,
     this.size = 120,
+    this.pulseTrigger = 0,
   });
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedMacroRing(progress: progress, value: value, label: label, color: color, size: size);
+    return AnimatedMacroRing(
+      progress: progress,
+      value: value,
+      label: label,
+      color: color,
+      size: size,
+      pulseTrigger: pulseTrigger,
+    );
   }
 }
 

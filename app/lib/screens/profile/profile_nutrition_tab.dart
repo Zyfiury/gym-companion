@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/allergy_guard.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/sheet_padding.dart';
 import '../../widgets/onboarding/onboarding_chip.dart';
 import '../../widgets/premium_ui.dart';
 import '../../widgets/profile/profile_glass_card.dart';
@@ -51,7 +52,7 @@ class ProfileNutritionTab extends StatelessWidget {
       children: [
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            padding: EdgeInsets.fromLTRB(16, 8, 16, scrollBottomInset(context, extra: 80)),
             children: [
               StaggeredEntry(
                 index: 0,

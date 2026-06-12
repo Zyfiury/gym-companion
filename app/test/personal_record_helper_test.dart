@@ -31,4 +31,20 @@ void main() {
   test('formatValue adds unit spacing', () {
     expect(PersonalRecordHelper.formatValue(100, 'kg'), '100 kg');
   });
+
+  test('isNewBest detects kg PR', () {
+    final records = [
+      {'exercise': 'Bench Press', 'value': 80, 'unit': 'kg'},
+    ];
+    expect(PersonalRecordHelper.isNewBest(records, exercise: 'Bench Press', value: 85, unit: 'kg'), isTrue);
+    expect(PersonalRecordHelper.isNewBest(records, exercise: 'Bench Press', value: 80, unit: 'kg'), isFalse);
+  });
+
+  test('previousBest returns highest kg for exercise', () {
+    final records = [
+      {'exercise': 'Squat', 'value': 100, 'unit': 'kg'},
+      {'exercise': 'Squat', 'value': 120, 'unit': 'kg'},
+    ];
+    expect(PersonalRecordHelper.previousBest(records, exercise: 'Squat', unit: 'kg'), 120);
+  });
 }

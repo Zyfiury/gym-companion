@@ -31,6 +31,7 @@ import 'screens/meals_screen.dart';
 
 import 'screens/profile/profile_screen.dart';
 import 'widgets/page_transitions.dart';
+import 'widgets/user_avatar.dart';
 import 'widgets/location_permission_sheet.dart';
 
 import 'screens/progress_screen.dart';
@@ -218,8 +219,27 @@ class MainShell extends ConsumerStatefulWidget {
   ConsumerState<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends ConsumerState<MainShell> {
+class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserver {
   bool _locationSheetShown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
+    if (lifecycleState == AppLifecycleState.resumed && mounted) {
+      provider.Provider.of<AppState>(context, listen: false).refreshHealthData();
+    }
+  }
 
   @override
 
@@ -254,28 +274,50 @@ class _MainShellState extends ConsumerState<MainShell> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 12, 0),
+              padding: const EdgeInsets.fromLTRB(20, 8, 12, 4),
               child: Row(
                 children: [
                   Expanded(
                     child: onHome
                         ? const SizedBox.shrink()
-                        : Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Semantics(
-                                identifier: 'app-title',
-                                child: Text(tabTitle, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: theme.textPrimary, letterSpacing: -0.2)),
+                        : Semantics(
+                            identifier: 'header-profile-link',
+                            button: true,
+                            label: 'Open profile for ${state.displayName ?? "you"}',
+                            child: GestureDetector(
+                              onTap: () => pushPremium(context, const ProfileScreen()),
+                              behavior: HitTestBehavior.opaque,
+                              child: Row(
+                                children: [
+                                  UserAvatar(
+                                    imagePath: state.user!.avatarPath,
+                                    name: state.displayName ?? 'Athlete',
+                                    radius: 16,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Semantics(
+                                          identifier: 'app-title',
+                                          child: Text(tabTitle, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: theme.textPrimary, letterSpacing: -0.2)),
+                                        ),
+                                        Semantics(
+                                          identifier: 'app-subtitle',
+                                          label: '${state.displayName ?? ""} ${state.user!.weeklyPlan.macros["calories"] ?? state.user!.tdee} kcal target',
+                                          child: Text(
+                                            '${state.displayName ?? ""} · ${state.user!.weeklyPlan.macros["calories"] ?? state.user!.tdee} kcal',
+                                            style: TextStyle(fontSize: 12, color: theme.textSecondary),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(Icons.chevron_right, size: 18, color: theme.textMuted),
+                                ],
                               ),
-                              Semantics(
-                                identifier: 'app-subtitle',
-                                label: '${state.displayName ?? ""} ${state.user!.weeklyPlan.macros["calories"] ?? state.user!.tdee} kcal target',
-                                child: Text(
-                                  '${state.displayName ?? ""} · ${state.user!.weeklyPlan.macros["calories"] ?? state.user!.tdee} kcal',
-                                  style: TextStyle(fontSize: 12, color: theme.textSecondary),
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
                   ),
                   IconButton(
@@ -298,19 +340,13 @@ class _MainShellState extends ConsumerState<MainShell> {
                   Semantics(
                     identifier: 'tab-profile',
                     button: true,
+                    label: 'Profile',
                     child: GestureDetector(
                       onTap: () => pushPremium(context, const ProfileScreen()),
-                      child: CircleAvatar(
+                      child: UserAvatar(
+                        imagePath: state.user!.avatarPath,
+                        name: state.displayName ?? 'Athlete',
                         radius: 18,
-                        backgroundColor: colors.accent.withValues(alpha: isDark ? 0.25 : 0.12),
-                        child: Text(
-                          (state.displayName ?? 'A').substring(0, 1).toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: isDark ? colors.dusk : colors.primary,
-                          ),
-                        ),
                       ),
                     ),
                   ),
@@ -335,7 +371,7 @@ class _MainShellState extends ConsumerState<MainShell> {
         ),
       ),
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        padding: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.of(context).padding.bottom + 16),
         child: Container(
           height: 62,
           decoration: BoxDecoration(

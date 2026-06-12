@@ -39,6 +39,62 @@ class PersonalRecordHelper {
     return unit.isEmpty ? text : '$text $unit';
   }
 
+  static String _normalizeExerciseName(String name) =>
+      name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9 ]'), '').trim();
+
+  static double _toKg(double value, String unit) {
+    if (unit == 'lbs' || unit == 'lb') return value * 0.453592;
+    return value;
+  }
+
+  static double? previousBest(
+    List<Map<String, dynamic>> records, {
+    required String exercise,
+    required String unit,
+  }) {
+    final target = _normalizeExerciseName(exercise);
+    double? best;
+    for (final r in records) {
+      final name = _normalizeExerciseName((r['exercise'] ?? '').toString());
+      if (name != target) continue;
+      final rUnit = (r['unit'] ?? 'kg').toString();
+      if (unit == 'reps' || rUnit == 'reps') {
+        if (unit != 'reps') continue;
+        final v = (r['value'] as num?)?.toDouble();
+        if (v != null && (best == null || v > best)) best = v;
+      } else {
+        if (rUnit == 'reps') continue;
+        final v = _toKg((r['value'] as num?)?.toDouble() ?? 0, rUnit);
+        if (best == null || v > best) best = v;
+      }
+    }
+    return best;
+  }
+
+  static bool isNewBest(
+    List<Map<String, dynamic>> records, {
+    required String exercise,
+    required double value,
+    required String unit,
+  }) {
+    final prev = previousBest(records, exercise: exercise, unit: unit);
+    if (prev == null) return value > 0;
+    if (unit == 'reps') return value > prev;
+    return _toKg(value, unit) > prev + 0.01;
+  }
+
+  static String formatRecentPr(Map<String, dynamic> record) {
+    final exercise = record['exercise'] ?? '';
+    final value = record['value'];
+    final unit = (record['unit'] ?? 'kg').toString();
+    if (unit == 'kg' || unit == 'lbs') {
+      final kg = _toKg((value as num?)?.toDouble() ?? 0, unit);
+      final text = kg == kg.roundToDouble() ? kg.toInt() : kg.toStringAsFixed(1);
+      return '$exercise ${text}kg';
+    }
+    return '$exercise ${formatValue(value, unit)}';
+  }
+
   static List<String> exerciseSuggestions(UserData user) {
     final names = <String>{
       'Bench Press',

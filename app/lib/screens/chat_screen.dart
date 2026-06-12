@@ -4,7 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:speech_to_text/speech_to_text.dart';
-import 'package:url_launcher/url_launcher.dart';
+import '../utils/delivery_actions.dart';
 import '../models/user_data.dart';
 import '../providers/app_state.dart';
 import '../services/backend_config.dart';
@@ -12,6 +12,7 @@ import '../services/subscription_service.dart';
 import '../services/vision_calorie_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/action_confirmation_chip.dart';
+import '../utils/sheet_padding.dart';
 import '../widgets/premium_ui.dart';
 import '../widgets/staggered_entry.dart';
 import 'paywall_screen.dart';
@@ -339,7 +340,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       backgroundColor: context.appTheme.card,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(20),
+        padding: sheetInsets(ctx, horizontal: 20, top: 20, extra: 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -390,50 +391,80 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     final t = context.appTheme;
     final name = opt['restaurant'] as String? ?? 'Restaurant';
     final dish = opt['dish'] as String? ?? '';
-    return Container(
-      margin: const EdgeInsets.only(top: 6),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: AppColors.accent.withValues(alpha: context.isDarkTheme ? 0.12 : 0.06),
+    final isEatOut = opt['isEatOut'] == true;
+    final actionUrl = primaryActionUrl(opt);
+
+    return Material(
+      color: AppColors.accent.withValues(alpha: context.isDarkTheme ? 0.12 : 0.06),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: actionUrl != null ? () => launchExternalUrl(context, actionUrl) : null,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.accent.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: t.textPrimary)),
-          if (dish.isNotEmpty)
-            Text(
-              opt['macrosEstimated'] == true
-                  ? 'Suggested: $dish (est. macros)'
-                  : '${opt['nutritionSource'] != null ? '$dish (${opt['nutritionSource']})' : dish}',
-              style: TextStyle(fontSize: 11, color: t.textSecondary),
-            ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 6,
-            runSpacing: 4,
+        child: Container(
+          margin: const EdgeInsets.only(top: 6),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.accent.withValues(alpha: 0.2)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _linkChip('Uber Eats', opt['uberEatsUrl'] as String?),
-              _linkChip('Deliveroo', opt['deliverooUrl'] as String?),
-              _linkChip('Just Eat', opt['justEatUrl'] as String?),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: t.textPrimary)),
+                  ),
+                  if (actionUrl != null)
+                    Icon(
+                      isEatOut ? Icons.map_outlined : Icons.open_in_new,
+                      size: 14,
+                      color: t.textMuted,
+                    ),
+                ],
+              ),
+              if (dish.isNotEmpty)
+                Text(
+                  opt['macrosEstimated'] == true
+                      ? 'Suggested: $dish (est. macros)'
+                      : '${opt['nutritionSource'] != null ? '$dish (${opt['nutritionSource']})' : dish}',
+                  style: TextStyle(fontSize: 11, color: t.textSecondary),
+                ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  if (isEatOut && opt['mapsUrl'] != null)
+                    _linkChip('Open in Maps', opt['mapsUrl'] as String?)
+                  else ...[
+                    _linkChip('Uber Eats', opt['uberEatsUrl'] as String?),
+                    _linkChip('Deliveroo', opt['deliverooUrl'] as String?),
+                    _linkChip('Just Eat', opt['justEatUrl'] as String?),
+                  ],
+                  _linkChip('Log dish', null, onTap: () => logDeliveryOption(context, opt)),
+                ],
+              ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _linkChip(String label, String? url) {
-    if (url == null || url.isEmpty) return const SizedBox.shrink();
+  Widget _linkChip(String label, String? url, {VoidCallback? onTap}) {
+    if (url == null && onTap == null) return const SizedBox.shrink();
     return ActionChip(
       label: Text(label, style: const TextStyle(fontSize: 10)),
       visualDensity: VisualDensity.compact,
       backgroundColor: AppColors.accent.withValues(alpha: 0.12),
       labelStyle: const TextStyle(color: AppColors.accent),
       onPressed: () async {
-        final uri = Uri.parse(url);
-        if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+        if (onTap != null) {
+          onTap();
+          return;
+        }
+        if (url != null) await launchExternalUrl(context, url);
       },
     );
   }
@@ -582,7 +613,7 @@ class _CoachContextPicker extends StatelessWidget {
       backgroundColor: t.card,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(20),
+        padding: sheetInsets(ctx, horizontal: 20, top: 20, extra: 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -725,7 +756,7 @@ class _InputDock extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.appTheme;
     return Container(
-      margin: EdgeInsets.fromLTRB(embedded ? 0 : 16, 8, embedded ? 0 : 16, embedded ? 0 : 8 + MediaQuery.of(context).padding.bottom),
+      margin: EdgeInsets.fromLTRB(embedded ? 12 : 16, 8, embedded ? 12 : 16, embedded ? 8 : 8 + MediaQuery.of(context).padding.bottom),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
       decoration: BoxDecoration(
         color: t.card,

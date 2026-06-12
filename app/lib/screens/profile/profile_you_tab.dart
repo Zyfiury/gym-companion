@@ -6,6 +6,7 @@ import '../../providers/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/premium_ui.dart';
 import '../../widgets/profile/profile_glass_card.dart';
+import '../../utils/sheet_padding.dart';
 import '../../widgets/profile/profile_hero_header.dart';
 import '../../widgets/staggered_entry.dart';
 
@@ -13,12 +14,14 @@ class ProfileYouTab extends StatelessWidget {
   final UserData user;
   final String displayName;
   final VoidCallback onEdit;
+  final VoidCallback? onAvatarTap;
 
   const ProfileYouTab({
     super.key,
     required this.user,
     required this.displayName,
     required this.onEdit,
+    this.onAvatarTap,
   });
 
   String _goalLabel(String goal) => switch (goal) {
@@ -48,16 +51,18 @@ class ProfileYouTab extends StatelessWidget {
       children: [
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            padding: EdgeInsets.fromLTRB(16, 0, 16, scrollBottomInset(context, extra: 24)),
             children: [
               StaggeredEntry(
                 index: 0,
                 child: ProfileHeroHeader(
                   displayName: displayName,
+                  avatarPath: user.avatarPath,
                   goalLabel: _goalLabel(user.goal),
                   statsLine: '${user.weight.round()} kg · ${user.tdee} kcal',
                   profileComplete: user.profileComplete,
                   onEdit: onEdit,
+                  onAvatarTap: onAvatarTap,
                 ),
               ),
               if (!user.profileComplete) ...[

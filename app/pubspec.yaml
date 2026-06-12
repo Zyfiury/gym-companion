@@ -1,7 +1,7 @@
 name: gym_companion
 description: AI-powered gym, nutrition and budget companion.
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.1+4
 
 environment:
   sdk: ^3.11.5
@@ -59,17 +59,20 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: assets/icon/app_icon.png
-  adaptive_icon_background: "#0A0A12"
+  adaptive_icon_background: "#111C22"
   adaptive_icon_foreground: assets/icon/app_icon.png
 
 flutter_native_splash:
-  color: "#0A0A12"
-  color_dark: "#0A0A12"
+  color: "#111C22"
+  color_dark: "#111C22"
+  image: assets/icon/app_icon.png
   android_12:
-    color: "#0A0A12"
-    icon_background_color: "#8B5CF6"
+    color: "#111C22"
+    image: assets/icon/app_icon.png
+    icon_background_color: "#111C22"
 
 flutter:
   uses-material-design: true
   assets:
     - .env
+    - assets/icon/app_icon.png

@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/user_data.dart';
+import '../models/workout_status.dart';
+import '../screens/workout_detail_screen.dart';
 import '../providers/app_state.dart';
 import '../services/health_safety_service.dart';
 import '../services/workout_adaptation_service.dart';
 import '../services/youtube_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/sheet_padding.dart';
 import '../widgets/premium_ui.dart';
 import '../widgets/shimmer_skeleton.dart';
 import '../widgets/staggered_entry.dart';
@@ -63,7 +66,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       backgroundColor: t.card,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(20),
+        padding: sheetInsets(ctx, horizontal: 20, top: 20, extra: 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -166,6 +169,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             StaggeredEntry(
               index: 2,
               child: AppCard(
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => WorkoutDetailScreen(workout: todayW)),
+                  );
+                },
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -202,6 +210,18 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                             ],
                           ),
                         ),
+                        if (context.watch<AppState>().todayWorkoutStatus != WorkoutStatus.planned)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.emerald.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              context.watch<AppState>().todayWorkoutStatus.name,
+                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.emerald),
+                            ),
+                          ),
                       ],
                     ),
                     const SizedBox(height: 16),

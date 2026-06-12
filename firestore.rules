@@ -11,6 +11,17 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == uid;
     }
 
+    function linkedActivityValid(uid, data) {
+      let t = data.postType;
+      return t == 'general' || t == 'progress' || t == 'motivation'
+        || (t == 'meal' && data.activityId is string
+            && exists(/databases/$(database)/documents/users/$(uid)/food_entries/$(data.activityId)))
+        || (t == 'workout' && data.activityId is string
+            && exists(/databases/$(database)/documents/users/$(uid)/workout_sessions/$(data.activityId)))
+        || (t == 'pr' && data.activityId is string
+            && exists(/databases/$(database)/documents/users/$(uid)/personal_records/$(data.activityId)));
+    }
+
     match /users/{userId} {
       allow read, write: if isOwner(userId);
 
@@ -27,7 +38,8 @@ service cloud.firestore {
     match /feed_posts/{postId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn()
-        && request.resource.data.authorId == request.auth.uid;
+        && request.resource.data.authorId == request.auth.uid
+        && linkedActivityValid(request.auth.uid, request.resource.data);
       allow update: if isSignedIn()
         && (resource.data.authorId == request.auth.uid
             || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']));

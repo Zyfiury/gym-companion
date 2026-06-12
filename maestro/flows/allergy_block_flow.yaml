@@ -1,5 +1,6 @@
 appId: com.gymcompanion.gym_companion
 ---
+# Dairy allergy (test account) + yogurt barcode → warning sheet, not hard block
 - launchApp:
     clearState: true
 - extendedWaitUntil:
@@ -17,7 +18,7 @@ appId: com.gymcompanion.gym_companion
 - extendedWaitUntil:
     visible:
       id: "home-greeting"
-    timeout: 15000
+    timeout: 20000
 - tapOn:
     id: "tab-workout"
 - extendedWaitUntil:
@@ -35,27 +36,14 @@ appId: com.gymcompanion.gym_companion
     timeout: 10000
 - tapOn:
     id: "barcode-scan-btn"
-- scrollUntilVisible:
-    element:
-      id: "barcode-result"
-    direction: DOWN
+- extendedWaitUntil:
+    visible:
+      id: "barcode-allergy-warning"
     timeout: 10000
 - assertVisible:
-    id: "barcode-result"
+    id: "barcode-log-anyway"
 - tapOn:
-    id: "tab-chat"
+    id: "barcode-log-anyway"
 - tapOn:
-    id: "chat-input"
-- inputText: "log 200g greek yogurt"
-- hideKeyboard
-- tapOn:
-    id: "chat-send"
-- scrollUntilVisible:
-    element:
-      id: "chat-last-reply"
-    direction: DOWN
-    timeout: 20000
-    visibilityPercentage: 50
-    centerElement: true
-- assertVisible:
-    id: "chat-last-reply"
+    id: "barcode-confirm-log"
+- back

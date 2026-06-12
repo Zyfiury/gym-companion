@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
-import '../services/allergy_guard.dart';
 import '../services/food_api_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/sheet_padding.dart';
 import '../widgets/barcode_confirm_sheet.dart';
 import '../widgets/premium_ui.dart';
 import 'barcode_scanner_page.dart';
@@ -52,7 +52,7 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
       backgroundColor: t.card,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => Padding(
-        padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
+        padding: sheetInsets(ctx, horizontal: 20, top: 20, extra: 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -96,7 +96,6 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
   }
 
   Future<void> _lookupAndConfirm(String code) async {
-    final u = context.read<AppState>().user!;
     setState(() {
       _loading = true;
       lastMsg = null;
@@ -109,20 +108,6 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
     if (product == null) {
       setState(() => _loading = false);
       await _showNotFound(code);
-      return;
-    }
-
-    final guard = AllergyGuard.checkProduct(
-      name: product['name'] as String,
-      allergenTags: List<String>.from(product['allergens'] as List? ?? []),
-      prefs: UserAllergies.fromUser(u),
-    );
-    if (!guard.isSafe) {
-      setState(() {
-        _loading = false;
-        blocked = true;
-        lastMsg = '⚠️ Blocked: ${product['name']} — ${guard.message}';
-      });
       return;
     }
 

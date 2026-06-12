@@ -24,4 +24,4 @@ appId: com.gymcompanion.gym_companion
     visible: "AI Coach"
     timeout: 10000
 - assertVisible:
-    id: "app-subtitle"
+    id: "chat-input"

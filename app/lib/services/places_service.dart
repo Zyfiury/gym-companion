@@ -184,59 +184,88 @@ class PlacesService {
   static Future<List<NearbySupermarket>> findSupermarkets(
     UserLocation location, {
     int radiusMeters = 8047,
-    int maxResults = 8,
+    int maxResults = 12,
   }) async {
     final key = BackendConfig.googlePlacesApiKey;
     if (key == null) return [];
 
-    final chains = ['Tesco', 'Sainsbury', 'Asda', 'Aldi', 'Lidl', 'Morrisons', 'Co-op'];
     final found = <String, NearbySupermarket>{};
+    final searches = [
+      {'type': 'supermarket', 'keyword': ''},
+      {'type': 'grocery_or_supermarket', 'keyword': ''},
+      {'type': 'store', 'keyword': 'grocery food'},
+    ];
 
-    for (final chain in chains) {
-      final uri = Uri.parse('$_base/nearbysearch/json').replace(queryParameters: {
-        'location': '${location.latitude},${location.longitude}',
-        'radius': '$radiusMeters',
-        'type': 'supermarket',
-        'keyword': chain,
-        'key': key,
-      });
-      try {
-        final res = await http.get(uri).timeout(const Duration(seconds: 12));
-        if (res.statusCode != 200) continue;
-        final data = jsonDecode(res.body) as Map<String, dynamic>;
-        if (data['status'] != 'OK') continue;
-        for (final raw in (data['results'] as List?) ?? []) {
-          final r = raw as Map<String, dynamic>;
-          final name = r['name'] as String? ?? chain;
-          final placeId = r['place_id'] as String? ?? '';
-          if (placeId.isEmpty || found.containsKey(placeId)) continue;
-          final geometry = r['geometry'] as Map<String, dynamic>?;
-          final loc = geometry?['location'] as Map<String, dynamic>?;
-          double? distKm;
-          if (loc != null) {
-            final meters = Geolocator.distanceBetween(
-              location.latitude,
-              location.longitude,
-              (loc['lat'] as num).toDouble(),
-              (loc['lng'] as num).toDouble(),
-            );
-            distKm = meters / 1000;
-          }
-          found[placeId] = NearbySupermarket(
-            name: name,
-            address: r['vicinity'] as String? ?? '',
-            placeId: placeId,
-            distanceKm: distKm,
-          );
-          if (found.length >= maxResults) break;
-        }
-      } catch (_) {}
+    for (final search in searches) {
+      await _collectSupermarkets(
+        location,
+        found,
+        type: search['type']!,
+        keyword: search['keyword']!,
+        radiusMeters: radiusMeters,
+        maxResults: maxResults,
+        key: key,
+      );
       if (found.length >= maxResults) break;
     }
 
     final list = found.values.toList();
     list.sort((a, b) => (a.distanceKm ?? 99).compareTo(b.distanceKm ?? 99));
-    return list;
+    return list.take(maxResults).toList();
+  }
+
+  static Future<void> _collectSupermarkets(
+    UserLocation location,
+    Map<String, NearbySupermarket> found, {
+    required String type,
+    required String keyword,
+    required int radiusMeters,
+    required int maxResults,
+    required String key,
+  }) async {
+    final params = <String, String>{
+      'location': '${location.latitude},${location.longitude}',
+      'radius': '$radiusMeters',
+      'type': type,
+      'key': key,
+    };
+    if (keyword.isNotEmpty) params['keyword'] = keyword;
+
+    final uri = Uri.parse('$_base/nearbysearch/json').replace(queryParameters: params);
+    try {
+      final res = await http.get(uri).timeout(const Duration(seconds: 12));
+      if (res.statusCode != 200) return;
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      if (data['status'] != 'OK' && data['status'] != 'ZERO_RESULTS') return;
+
+      for (final raw in (data['results'] as List?) ?? []) {
+        final r = raw as Map<String, dynamic>;
+        final name = r['name'] as String? ?? 'Store';
+        final placeId = r['place_id'] as String? ?? '';
+        if (placeId.isEmpty || found.containsKey(placeId)) continue;
+
+        final geometry = r['geometry'] as Map<String, dynamic>?;
+        final loc = geometry?['location'] as Map<String, dynamic>?;
+        double? distKm;
+        if (loc != null) {
+          final meters = Geolocator.distanceBetween(
+            location.latitude,
+            location.longitude,
+            (loc['lat'] as num).toDouble(),
+            (loc['lng'] as num).toDouble(),
+          );
+          distKm = meters / 1000;
+        }
+
+        found[placeId] = NearbySupermarket(
+          name: name,
+          address: r['vicinity'] as String? ?? r['formatted_address'] as String? ?? '',
+          placeId: placeId,
+          distanceKm: distKm,
+        );
+        if (found.length >= maxResults) return;
+      }
+    } catch (_) {}
   }
 
   static Future<String?> reverseGeocodeLabel(UserLocation location) async {

@@ -77,6 +77,13 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   const SectionLabel('Today'),
                   const SizedBox(height: 16),
                   MacroBar(label: 'Calories', current: macros.calories, target: calTarget, color: AppColors.orange),
+                  if (_loggingToday) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      '${state.activeCaloriesBurned.round()} kcal burned · Net ${state.netCalories.round()} kcal',
+                      style: TextStyle(fontSize: 12, color: t.textSecondary),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   MacroBar(label: 'Protein', current: macros.protein, target: u.weeklyPlan.macros['protein'] ?? 140, color: AppColors.accent),
                   const SizedBox(height: 12),
@@ -95,7 +102,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 context,
                 connected: state.healthConnected,
                 steps: u.steps.toInt(),
-                onConnect: () => state.refreshHealthData(requestIfNeeded: true),
               ),
               child: AppCard(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -108,9 +114,19 @@ class _ProgressScreenState extends State<ProgressScreen> {
                     ),
                     const SizedBox(width: 16),
                     Expanded(child: Text('Steps today', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: t.textPrimary))),
-                    Text(
-                      state.healthConnected ? '${u.steps.toInt()}' : '—',
-                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: t.textPrimary),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          state.healthConnected ? '${u.steps.toInt()}' : '—',
+                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: t.textPrimary),
+                        ),
+                        if (state.healthConnected && state.stepCaloriesBurned > 0)
+                          Text(
+                            '${state.stepCaloriesBurned.round()} kcal',
+                            style: TextStyle(fontSize: 11, color: t.textSecondary),
+                          ),
+                      ],
                     ),
                   ],
                 ),

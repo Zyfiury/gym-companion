@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 import '../providers/app_state.dart';
+import '../services/allergy_guard.dart';
 import '../theme/app_theme.dart';
+import '../utils/sheet_padding.dart';
 
 class BarcodeConfirmSheet extends StatefulWidget {
   final Map<String, dynamic> product;
@@ -27,6 +29,30 @@ class _BarcodeConfirmSheetState extends State<BarcodeConfirmSheet> {
   double _grams = 100;
   Timer? _debounce;
   bool _logging = false;
+  bool _acknowledgedAllergy = false;
+  late GuardResult _guard;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = context.read<AppState>().user!;
+    final prefs = UserAllergies.fromUser(user);
+    final name = widget.product['name'] as String? ?? '';
+    final allergens = List<String>.from(widget.product['allergens'] as List? ?? []);
+    final ingredients = widget.product['ingredients'] as String? ?? '';
+    final productGuard = AllergyGuard.checkProduct(name: name, allergenTags: allergens, prefs: prefs);
+    final textGuard = ingredients.isNotEmpty
+        ? AllergyGuard.checkText('$name $ingredients', prefs)
+        : GuardResult.safe();
+    if (productGuard.isSafe) {
+      _guard = textGuard;
+    } else if (textGuard.isSafe) {
+      _guard = productGuard;
+    } else {
+      final conflicts = {...productGuard.conflicts, ...textGuard.conflicts}.toList();
+      _guard = GuardResult.blocked(conflicts);
+    }
+  }
 
   Map<String, int> get _macros {
     final f = _grams / 100;
@@ -37,6 +63,8 @@ class _BarcodeConfirmSheetState extends State<BarcodeConfirmSheet> {
       'fat': ((widget.product['fat'] as num) * f).round(),
     };
   }
+
+  bool get _canLog => _guard.isSafe || _acknowledgedAllergy;
 
   @override
   void dispose() {
@@ -51,11 +79,29 @@ class _BarcodeConfirmSheetState extends State<BarcodeConfirmSheet> {
     final imageUrl = widget.product['imageUrl'] as String?;
 
     return Padding(
-      padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(context).viewInsets.bottom + 20),
+      padding: sheetInsets(context, horizontal: 20, top: 20, extra: 20),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (!_guard.isSafe)
+            Semantics(
+              identifier: 'barcode-allergy-warning',
+              child: Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.35)),
+                ),
+                child: Text(
+                  'Contains ${_guard.conflicts.join(', ')} — you marked this as an allergy',
+                  style: TextStyle(color: t.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
           if (imageUrl != null && imageUrl.isNotEmpty)
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
@@ -117,11 +163,27 @@ class _BarcodeConfirmSheetState extends State<BarcodeConfirmSheet> {
             },
           ),
           const SizedBox(height: 8),
-          SizedBox(
+          if (!_guard.isSafe && !_acknowledgedAllergy)
+            Semantics(
+              identifier: 'barcode-log-anyway',
+              button: true,
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                  onPressed: () => setState(() => _acknowledgedAllergy = true),
+                  child: const Text('Log anyway'),
+                ),
+              ),
+            ),
+          Semantics(
+            identifier: 'barcode-confirm-log',
+            button: true,
+            child: SizedBox(
             width: double.infinity,
             child: FilledButton(
               style: FilledButton.styleFrom(backgroundColor: AppColors.accent, padding: const EdgeInsets.symmetric(vertical: 14)),
-              onPressed: _logging
+              onPressed: !_canLog || _logging
                   ? null
                   : () async {
                       setState(() => _logging = true);
@@ -142,8 +204,9 @@ class _BarcodeConfirmSheetState extends State<BarcodeConfirmSheet> {
                     },
               child: _logging
                   ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Text('Log this food'),
+                  : Text(_guard.isSafe ? 'Log this food' : 'Confirm & log'),
             ),
+          ),
           ),
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         ],

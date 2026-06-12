@@ -21,11 +21,19 @@ keytool -list -v -keystore "$env:USERPROFILE\.android\debug.keystore" -alias and
 keytool -list -v -keystore upload-keystore.jks -alias upload
 ```
 
-Add **both** SHA-1 values in Firebase → Project settings → Your apps → Android app → Add fingerprint.
+Add **debug**, **upload**, and **Play App signing** SHA-1 values in Firebase → Project settings → Your apps → Android app → Add fingerprint.
+
+**Automated sync (recommended):**
+
+```powershell
+.\scripts\sync_google_signin.ps1 -FromDevice
+```
+
+Plug in your phone (with the Play Store internal build installed) so the script can read the real signing certificate and register it in Firebase.
 
 ### google-services.json
 
-After adding SHA-1, re-download `google-services.json`. It should contain `oauth_client` entries (currently empty).
+After adding SHA-1, re-download `google-services.json` (the script above does this automatically).
 
 Replace: `android/app/google-services.json`
 

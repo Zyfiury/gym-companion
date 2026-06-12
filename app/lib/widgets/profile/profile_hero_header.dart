@@ -2,29 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../theme/app_theme.dart';
 import '../staggered_entry.dart';
+import '../user_avatar.dart';
 
 class ProfileHeroHeader extends StatelessWidget {
   final String displayName;
+  final String? avatarPath;
   final String goalLabel;
   final String statsLine;
   final bool profileComplete;
   final VoidCallback onEdit;
+  final VoidCallback? onAvatarTap;
 
   const ProfileHeroHeader({
     super.key,
     required this.displayName,
+    this.avatarPath,
     required this.goalLabel,
     required this.statsLine,
     required this.profileComplete,
     required this.onEdit,
+    this.onAvatarTap,
   });
-
-  String _initials(String name) {
-    final parts = name.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty || parts.first.isEmpty) return 'A';
-    if (parts.length == 1) return parts.first[0].toUpperCase();
-    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
-  }
 
   Color _goalColor(String goal) => switch (goal.toLowerCase()) {
         'cut' => AppColors.hydro,
@@ -60,22 +58,32 @@ class ProfileHeroHeader extends StatelessWidget {
             children: [
               PulseGlow(
                 size: 72,
-                child: Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    gradient: AppColors.warmGradient,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: t.borderSubtle.withValues(alpha: 0.5), width: 2),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    _initials(name),
-                    style: GoogleFonts.dmSans(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
+                child: GestureDetector(
+                  onTap: onAvatarTap,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      UserAvatar(
+                        imagePath: avatarPath,
+                        name: name,
+                        radius: 36,
+                      ),
+                      if (onAvatarTap != null)
+                        Positioned(
+                          right: -2,
+                          bottom: -2,
+                          child: Container(
+                            width: 26,
+                            height: 26,
+                            decoration: BoxDecoration(
+                              color: AppColors.accent,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: t.scaffold, width: 2),
+                            ),
+                            child: const Icon(Icons.camera_alt_rounded, size: 13, color: Colors.white),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),

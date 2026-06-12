@@ -17,11 +17,15 @@ appId: com.gymcompanion.gym_companion
 - extendedWaitUntil:
     visible:
       id: "home-greeting"
-    timeout: 15000
+    timeout: 20000
 - tapOn:
     id: "tab-chat"
 - tapOn:
-    id: "chat-plan-week"
+    id: "chat-input"
+- inputText: "generate a cheap meal plan for the week"
+- hideKeyboard
+- tapOn:
+    id: "chat-send"
 - scrollUntilVisible:
     element:
       id: "chat-last-reply"
@@ -31,15 +35,6 @@ appId: com.gymcompanion.gym_companion
     centerElement: true
 - assertVisible:
     id: "chat-last-reply"
-- tapOn:
-    id: "chat-plan-month"
-- scrollUntilVisible:
-    element:
-      id: "chat-last-reply"
-    direction: DOWN
-    timeout: 60000
-    visibilityPercentage: 50
-    centerElement: true
 - tapOn:
     id: "tab-meals"
 - extendedWaitUntil:

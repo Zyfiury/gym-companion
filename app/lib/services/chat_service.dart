@@ -2,13 +2,33 @@ import '../models/user_data.dart';
 import 'allergy_guard.dart';
 import 'health_safety_service.dart';
 import 'meal_variety_service.dart';
+import 'tdee_service.dart';
 import 'workout_adaptation_service.dart';
+
+class FoodLogIntent {
+  final String name;
+  final int calories;
+  final int protein;
+  final int carbs;
+  final int fat;
+  final double? grams;
+
+  const FoodLogIntent({
+    required this.name,
+    required this.calories,
+    required this.protein,
+    this.carbs = 0,
+    this.fat = 0,
+    this.grams,
+  });
+}
 
 class ChatResult {
   final String reply;
   final UserData? updatedUser;
+  final FoodLogIntent? foodLogIntent;
 
-  ChatResult({required this.reply, this.updatedUser});
+  ChatResult({required this.reply, this.updatedUser, this.foodLogIntent});
 }
 
 class ChatService {
@@ -23,14 +43,38 @@ class ChatService {
   };
 
   int _calcTdee(UserData u, {String? goal}) {
-    var tdee = u.tdee;
     final g = goal ?? u.goal;
-    if (g == 'cut') return tdee - 500;
-    if (g == 'bulk') return tdee + 300;
-    return tdee;
+    final plan = TdeeService.plan(
+      weightKg: u.weight,
+      heightCm: u.height,
+      age: u.age,
+      goal: g.isEmpty ? 'maintain' : g,
+      genderAtBirth: u.genderAtBirth,
+    );
+    return plan.target;
   }
 
   UserData _clone(UserData u) => UserData.fromJson(u.toJson());
+
+  int? _weeksUntilDeadline(String lower) {
+    const months = {
+      'january': 1, 'jan': 1, 'february': 2, 'feb': 2, 'march': 3, 'mar': 3,
+      'april': 4, 'apr': 4, 'may': 5, 'june': 6, 'jun': 6, 'july': 7, 'jul': 7,
+      'august': 8, 'aug': 8, 'september': 9, 'sep': 9, 'sept': 9,
+      'october': 10, 'oct': 10, 'november': 11, 'nov': 11, 'december': 12, 'dec': 12,
+    };
+    final m = RegExp(r'by\s+(\w+)', caseSensitive: false).firstMatch(lower);
+    if (m == null) return null;
+    final month = months[m.group(1)!.toLowerCase()];
+    if (month == null) return null;
+    final now = DateTime.now();
+    var year = now.year;
+    if (month <= now.month) year++;
+    final deadline = DateTime(year, month + 1, 0);
+    final days = deadline.difference(now).inDays;
+    if (days <= 0) return null;
+    return (days / 7).ceil();
+  }
 
   UserData _applyWorkoutPlan(UserData u, AdaptedWorkoutPlan plan) {
     return _clone(u)
@@ -121,11 +165,71 @@ class ChatService {
       return ChatResult(reply: '✅ Banned "$name" from future meal suggestions.', updatedUser: u);
     }
 
-    final weightRe = RegExp(r'(?:weight|weigh)\s*(?:to|is|=)?\s*(\d+(?:\.\d+)?)\s*k?g?', caseSensitive: false);
-    final weightMatch = weightRe.firstMatch(lower) ?? RegExp(r'(\d+(?:\.\d+)?)\s*kg').firstMatch(lower);
-    if (weightMatch != null && (lower.contains('weight') || lower.contains('kg') || lower.contains('set') || lower.contains('update'))) {
-      u = _clone(u)..weight = double.parse(weightMatch.group(1)!);
-      changes.add('weight to ${u.weight}kg');
+    // "lose 10kg" is a goal — not "my weight is 10kg"
+    final lossGoalRe = RegExp(
+      r'(?:want\s+to\s+|wanna\s+|trying\s+to\s+|need\s+to\s+)?(?:lose|drop|shed)\s+(\d+(?:\.\d+)?)\s*k?g',
+      caseSensitive: false,
+    );
+    final lossMatch = lossGoalRe.firstMatch(lower);
+    if (lossMatch != null) {
+      final lossKg = double.parse(lossMatch.group(1)!);
+      var currentWeight = user.weight;
+
+      final statedWeightRe = RegExp(
+        r'(?:i\s+)?weigh(?:t)?\s+(\d+(?:\.\d+)?)\s*k?g',
+        caseSensitive: false,
+      );
+      final statedMatch = statedWeightRe.firstMatch(lower);
+      if (statedMatch != null) {
+        currentWeight = double.parse(statedMatch.group(1)!);
+      }
+
+      final targetWeight = currentWeight - lossKg;
+      u = _clone(user);
+      if (statedMatch != null) u.weight = currentWeight;
+      u.goal = 'cut';
+      final tdee = _calcTdee(u);
+      u = _clone(u)
+        ..tdee = tdee
+        ..weeklyPlan = WeeklyPlan(
+          macros: {...u.weeklyPlan.macros, 'calories': tdee},
+          workouts: u.weeklyPlan.workouts,
+          meals: u.weeklyPlan.meals,
+          shoppingList: u.weeklyPlan.shoppingList,
+        );
+
+      final weeksNeeded = (lossKg / 0.75).ceil();
+      final deadlineWeeks = _weeksUntilDeadline(lower);
+      String feasibility;
+      if (deadlineWeeks != null) {
+        feasibility = deadlineWeeks >= weeksNeeded
+            ? 'Losing ${lossKg.toStringAsFixed(0)}kg in $deadlineWeeks weeks is realistic with a steady cut.'
+            : 'Losing ${lossKg.toStringAsFixed(0)}kg in $deadlineWeeks weeks is ambitious — aim for ~${(deadlineWeeks * 0.75).toStringAsFixed(0)}kg in that window, or extend the deadline.';
+      } else {
+        feasibility = 'Aim for ~0.5–1kg per week — about $weeksNeeded weeks for ${lossKg.toStringAsFixed(0)}kg.';
+      }
+
+      final weightNote = statedMatch != null ? '✅ Logged your weight as ${currentWeight.toStringAsFixed(0)}kg.\n' : '';
+      return ChatResult(
+        reply: '${weightNote}✅ Set your goal to cutting — target ~${targetWeight.toStringAsFixed(0)}kg (${lossKg.toStringAsFixed(0)}kg to lose). Daily calories: $tdee kcal.\n$feasibility Want me to generate a cutting workout plan?',
+        updatedUser: u,
+      );
+    }
+
+    final isLossPhrase = RegExp(r'(?:lose|drop|shed|lost|losing)\s+\d', caseSensitive: false).hasMatch(lower);
+    if (!isLossPhrase) {
+      final weightRe = RegExp(
+        r'(?:set\s+(?:my\s+)?weight\s+to|(?:my\s+)?weight\s+(?:is|to|=)|(?:i\s+)?weigh(?:t)?)\s*(\d+(?:\.\d+)?)\s*k?g?',
+        caseSensitive: false,
+      );
+      final weightMatch = weightRe.firstMatch(lower);
+      if (weightMatch != null) {
+        final w = double.parse(weightMatch.group(1)!);
+        if (w >= 35 && w <= 300) {
+          u = _clone(u)..weight = w;
+          changes.add('weight to ${u.weight}kg');
+        }
+      }
     }
 
     final goalRe = RegExp(r'goal\s*(?:to|is|=)?\s*(cut|bulk|maintain)|(cutting|bulking)', caseSensitive: false);
@@ -166,21 +270,18 @@ class ChatService {
       }
       final cal = (grams * 1.65).round();
       final protein = (grams * 0.31).round();
-      u = _clone(u)
-        ..foodLog = [...u.foodLog, {'date': DateTime.now().toIso8601String().substring(0, 10), 'food': food, 'grams': grams, 'calories': cal, 'protein': protein}]
-        ..dailyMacrosLogged = MacroLog(
-          calories: u.dailyMacrosLogged.calories + cal,
-          protein: u.dailyMacrosLogged.protein + protein,
-          carbs: u.dailyMacrosLogged.carbs,
-          fat: u.dailyMacrosLogged.fat,
-        );
-      final g = Map<String, dynamic>.from(u.gamification);
-      g['xp'] = (g['xp'] as int? ?? 0) + 5;
-      g['mealsLogged'] = (g['mealsLogged'] as int? ?? 0) + 1;
-      u.gamification = g;
+      final carbs = (grams * 0.08).round();
+      final fat = (grams * 0.05).round();
       return ChatResult(
-        reply: '✅ Logged ${grams}g $food — $cal kcal, P ${protein}g (+5 XP)',
-        updatedUser: u,
+        reply: '✅ Logged ${grams}g $food — $cal kcal, P ${protein}g',
+        foodLogIntent: FoodLogIntent(
+          name: food,
+          calories: cal,
+          protein: protein,
+          carbs: carbs,
+          fat: fat,
+          grams: grams,
+        ),
       );
     }
 

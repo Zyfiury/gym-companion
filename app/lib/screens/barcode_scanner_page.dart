@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:provider/provider.dart';
-import '../providers/app_state.dart';
-import '../services/allergy_guard.dart';
 import '../services/food_api_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/sheet_padding.dart';
 import '../widgets/barcode_confirm_sheet.dart';
 
 class BarcodeScannerPage extends StatefulWidget {
@@ -27,7 +25,7 @@ class _BarcodeScannerPageState extends State<BarcodeScannerPage> {
       backgroundColor: t.card,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => Padding(
-        padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
+        padding: sheetInsets(ctx, horizontal: 20, top: 20, extra: 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -87,18 +85,6 @@ class _BarcodeScannerPageState extends State<BarcodeScannerPage> {
     if (product == null) {
       setState(() => _processing = false);
       await _showNotFound(code);
-      return;
-    }
-    final user = context.read<AppState>().user!;
-    final guard = AllergyGuard.checkProduct(
-      name: product['name'] as String,
-      allergenTags: List<String>.from(product['allergens'] as List? ?? []),
-      prefs: UserAllergies.fromUser(user),
-    );
-    if (!guard.isSafe) {
-      setState(() => _processing = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Blocked: ${guard.message}')));
-      _controller.start();
       return;
     }
     setState(() => _processing = false);

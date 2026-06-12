@@ -1,14 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/pending_celebrations.dart';
+import '../models/user_data.dart';
+import '../models/workout_status.dart';
 import '../providers/app_state.dart';
-import '../services/subscription_service.dart';
+import '../screens/workout_detail_screen.dart';
 import '../theme/app_theme.dart';
+import '../widgets/tdee_update_banner.dart';
+import '../widgets/pr_celebration_modal.dart';
 import '../widgets/health_connect_sheet.dart';
 import '../widgets/premium_ui.dart';
 import '../widgets/pro_badge.dart';
 import '../widgets/staggered_entry.dart';
+import '../widgets/user_avatar.dart';
+import '../widgets/page_transitions.dart';
 import '../widgets/water_logger_sheet.dart';
 import 'paywall_screen.dart';
+import 'profile/profile_screen.dart';
+import '../services/subscription_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,6 +27,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  PendingPrCelebration? _shownPr;
+
   @override
   void initState() {
     super.initState();
@@ -31,41 +42,80 @@ class _HomeScreenState extends State<HomeScreen> {
     final t = context.appTheme;
     final state = context.watch<AppState>();
     final u = state.user!;
-    final logged = u.dailyMacrosLogged.calories;
-    final target = u.weeklyPlan.macros['calories'] ?? u.tdee;
+    final logged = state.caloriesEaten.round();
+    final target = state.caloriesTarget.round();
+    final burned = state.activeCaloriesBurned.round();
+    final net = state.netCalories.round();
     final protein = u.dailyMacrosLogged.protein;
     final proteinTarget = u.weeklyPlan.macros['protein'] ?? 140;
     final g = u.gamification;
     final remaining = target - logged > 0 ? target - logged : 0;
     final pct = target > 0 ? logged / target : 0.0;
 
+    final pr = state.pendingPrCelebration;
+    if (pr != null && pr != _shownPr) {
+      _shownPr = pr;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) PrCelebrationModal.show(context, pr);
+      });
+    }
+
     return AmbientBackground(
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        padding: EdgeInsets.fromLTRB(20, 4, 20, 24 + MediaQuery.paddingOf(context).bottom),
         children: [
+          const StaggeredEntry(index: 0, child: TdeeUpdateBanner()),
           StaggeredEntry(
             index: 0,
             child: Semantics(
-              identifier: 'home-greeting',
-              child: Text(
-                'Good ${_timeOfDay()}, ${state.displayName ?? 'Athlete'}',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w500, color: t.textPrimary, letterSpacing: -0.4, height: 1.2),
+              identifier: 'home-profile-card',
+              button: true,
+              label: 'Open your profile',
+              explicitChildNodes: true,
+              child: InkWell(
+                onTap: () => pushPremium(context, const ProfileScreen()),
+                borderRadius: BorderRadius.circular(16),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      UserAvatar(
+                        imagePath: u.avatarPath,
+                        name: state.displayName ?? 'Athlete',
+                        radius: 24,
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Semantics(
+                              identifier: 'home-greeting',
+                              child: Text(
+                                'Good ${_timeOfDay()}, ${state.displayName ?? 'Athlete'}',
+                                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: t.textPrimary, letterSpacing: -0.4, height: 1.2),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Semantics(
+                              identifier: 'app-subtitle',
+                              label: '${state.displayName ?? ""} $target kcal target',
+                              child: Text(
+                                '${_goalLabel(u.goal)} · $target kcal · View profile',
+                                style: TextStyle(color: t.textSecondary, fontSize: 13),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.chevron_right, color: t.textMuted, size: 22),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 6),
-          StaggeredEntry(
-            index: 1,
-            child: Semantics(
-              identifier: 'app-subtitle',
-              label: '${state.displayName ?? ""} $target kcal target',
-              child: Text(
-                '${_goalLabel(u.goal)} · $target kcal',
-                style: TextStyle(color: t.textSecondary, fontSize: 14),
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
           StaggeredEntry(
             index: 2,
             child: AppCard(
@@ -76,10 +126,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       MacroRing(
                         progress: pct,
                         value: '$logged',
-                        label: 'kcal',
+                        label: 'kcal eaten',
                         sublabel: '/ $target',
                         color: AppColors.ember,
                         size: 110,
+                        pulseTrigger: state.foodLogPulseTick,
                       ),
                       const SizedBox(width: 20),
                       Expanded(
@@ -87,10 +138,13 @@ class _HomeScreenState extends State<HomeScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('TODAY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 0.88, color: t.textMuted)),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 4),
+                            Text('$burned kcal burned', style: TextStyle(fontSize: 13, color: t.textSecondary)),
+                            Text('Net: $net kcal', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: t.textPrimary)),
+                            const SizedBox(height: 6),
                             Text(
-                              remaining > 0 ? '$remaining kcal left' : 'Target reached',
-                              style: TextStyle(fontSize: 13, color: remaining > 0 ? t.textSecondary : AppColors.emerald, fontWeight: FontWeight.w500),
+                              remaining > 0 ? '$remaining kcal left to eat' : 'Target reached',
+                              style: TextStyle(fontSize: 12, color: remaining > 0 ? t.textSecondary : AppColors.emerald, fontWeight: FontWeight.w500),
                             ),
                             const SizedBox(height: 18),
                             MacroBar(label: 'Protein', current: protein, target: proteinTarget, color: AppColors.volt),
@@ -126,13 +180,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   StatPill(
                     icon: Icons.directions_walk,
-                    value: state.healthConnected ? '${u.steps.toInt()}' : '—',
-                    label: 'Steps',
+                    value: state.healthConnected
+                        ? '${u.steps.toInt()}'
+                        : '—',
+                    label: state.healthConnected && state.stepCaloriesBurned > 0
+                        ? '${state.stepCaloriesBurned.round()} kcal'
+                        : 'Steps',
                     onTap: () => showHealthConnectSheet(
                       context,
                       connected: state.healthConnected,
                       steps: u.steps.toInt(),
-                      onConnect: () => state.refreshHealthData(requestIfNeeded: true),
                     ),
                   ),
                   StatPill(
@@ -303,6 +360,40 @@ class WorkoutPreview extends StatelessWidget {
 
   static const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+  static void _openDetail(BuildContext context, WorkoutDay w) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => WorkoutDetailScreen(workout: w)),
+    );
+  }
+
+  static Color _statusColor(WorkoutStatus status, AppThemeColors t) => switch (status) {
+        WorkoutStatus.completed => AppColors.emerald,
+        WorkoutStatus.skipped => t.textMuted,
+        WorkoutStatus.modified => AppColors.ember,
+        WorkoutStatus.planned => t.textSecondary,
+      };
+
+  static String _statusLabel(WorkoutStatus status) => switch (status) {
+        WorkoutStatus.completed => 'Completed',
+        WorkoutStatus.skipped => 'Skipped',
+        WorkoutStatus.modified => 'Modified',
+        WorkoutStatus.planned => 'Planned',
+      };
+
+  static Widget _statusChip(WorkoutStatus status, AppThemeColors t) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: _statusColor(status, t).withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        _statusLabel(status),
+        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: _statusColor(status, t)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.appTheme;
@@ -384,6 +475,7 @@ class WorkoutPreview extends StatelessWidget {
 
     final today = days[DateTime.now().weekday % 7];
     final w = u.weeklyPlan.workouts.where((x) => x.day == today).firstOrNull ?? u.weeklyPlan.workouts.first;
+    final status = state.todayWorkoutStatus;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -391,8 +483,11 @@ class WorkoutPreview extends StatelessWidget {
         const SectionLabel("Today's session"),
         const SizedBox(height: 10),
         AppCard(
-          onTap: () => state.setTab(1),
-          child: Column(
+          onTap: () => _openDetail(context, w),
+          child: Semantics(
+            identifier: 'workout-today-card',
+            button: true,
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
@@ -413,6 +508,8 @@ class WorkoutPreview extends StatelessWidget {
                       ],
                     ),
                   ),
+                  _statusChip(status, t),
+                  const SizedBox(width: 4),
                   Icon(Icons.chevron_right, color: t.textMuted, size: 20),
                 ],
               ),
@@ -442,6 +539,7 @@ class WorkoutPreview extends StatelessWidget {
                     ),
                   )),
             ],
+          ),
           ),
         ),
       ],

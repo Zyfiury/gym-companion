@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../theme/app_theme.dart';
+import '../utils/sheet_padding.dart';
 
 const _units = ['kg', 'lbs', 'reps', 'seconds', 'minutes'];
 
@@ -18,7 +19,7 @@ Future<void> showPrLogSheet(BuildContext context, {List<String> extraExercises =
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setLocal) => Padding(
-        padding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: MediaQuery.of(ctx).viewInsets.bottom + 24),
+        padding: sheetInsets(ctx),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,

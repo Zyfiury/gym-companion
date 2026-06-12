@@ -96,6 +96,35 @@ class WorkoutAdaptationService {
     },
   };
 
+  static List<WorkoutDay> applyPrProgression(
+    List<WorkoutDay> workouts,
+    List<Map<String, dynamic>> personalRecords,
+  ) {
+    if (personalRecords.isEmpty) return workouts;
+    return workouts.map((day) {
+      final exercises = day.exercises.map((raw) {
+        final parsedName = raw.split(RegExp(r'\s+\d')).first.trim().toLowerCase();
+        for (final pr in personalRecords) {
+          final prName = (pr['exercise'] ?? '').toString().toLowerCase();
+          final unit = (pr['unit'] ?? 'kg').toString();
+          if (unit != 'kg' && unit != 'lbs') continue;
+          if (!parsedName.contains(prName) && !prName.contains(parsedName)) continue;
+          final base = (pr['value'] as num?)?.toDouble() ?? 0;
+          if (base <= 0) continue;
+          final kg = unit == 'lbs' ? base * 0.453592 : base;
+          final target = kg + 2.5;
+          final targetText = target == target.roundToDouble() ? target.toInt() : target.toStringAsFixed(1);
+          if (raw.contains('@')) {
+            return raw.replaceAll(RegExp(r'@\s*[\d.]+\s*kg', caseSensitive: false), '@ ${targetText}kg');
+          }
+          return '$raw @ ${targetText}kg';
+        }
+        return raw;
+      }).toList();
+      return WorkoutDay(day: day.day, focus: day.focus, exercises: exercises);
+    }).toList();
+  }
+
   static AdaptedWorkoutPlan buildWeeklyPlan(UserData user) {
     if (needsSeatedPlan(user)) {
       return AdaptedWorkoutPlan(
@@ -151,6 +180,8 @@ class WorkoutAdaptationService {
     if (adaptations.isEmpty) {
       adaptations.add('Standard upper/lower split applied to your profile.');
     }
+
+    workouts = applyPrProgression(workouts, user.personalRecords);
 
     return AdaptedWorkoutPlan(workouts: workouts, adaptations: adaptations.toSet().toList());
   }

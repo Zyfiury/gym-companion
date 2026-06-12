@@ -228,6 +228,7 @@ class AnimatedMacroRing extends StatefulWidget {
   final String label;
   final Color color;
   final double size;
+  final int pulseTrigger;
 
   const AnimatedMacroRing({
     super.key,
@@ -236,20 +237,28 @@ class AnimatedMacroRing extends StatefulWidget {
     required this.label,
     required this.color,
     this.size = 120,
+    this.pulseTrigger = 0,
   });
 
   @override
   State<AnimatedMacroRing> createState() => _AnimatedMacroRingState();
 }
 
-class _AnimatedMacroRingState extends State<AnimatedMacroRing> with SingleTickerProviderStateMixin {
+class _AnimatedMacroRingState extends State<AnimatedMacroRing> with TickerProviderStateMixin {
   late AnimationController _ctrl;
+  late AnimationController _pulseCtrl;
   late Animation<double> _anim;
+  late Animation<double> _pulseAnim;
 
   @override
   void initState() {
     super.initState();
     _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100));
+    _pulseCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
+    _pulseAnim = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.03), weight: 50),
+      TweenSequenceItem(tween: Tween(begin: 1.03, end: 1.0), weight: 50),
+    ]).animate(_pulseCtrl);
     _anim = Tween<double>(begin: 0, end: widget.progress.clamp(0.0, 1.0))
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -265,45 +274,52 @@ class _AnimatedMacroRingState extends State<AnimatedMacroRing> with SingleTicker
           .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
       _ctrl.forward(from: 0);
     }
+    if (old.pulseTrigger != widget.pulseTrigger && widget.pulseTrigger > 0) {
+      _pulseCtrl.forward(from: 0);
+    }
   }
 
   @override
   void dispose() {
     _ctrl.dispose();
+    _pulseCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final t = context.appTheme;
-    return SizedBox(
-      width: widget.size,
-      height: widget.size,
-      child: AnimatedBuilder(
-        animation: _anim,
-        builder: (_, child) => Stack(
-          alignment: Alignment.center,
-          children: [
-            SizedBox(
-              width: widget.size,
-              height: widget.size,
-              child: CircularProgressIndicator(
-                value: _anim.value,
-                strokeWidth: 9,
-                backgroundColor: AppColors.slate600,
-                color: widget.color,
-                strokeCap: StrokeCap.round,
+    return ScaleTransition(
+      scale: _pulseAnim,
+      child: SizedBox(
+        width: widget.size,
+        height: widget.size,
+        child: AnimatedBuilder(
+          animation: _anim,
+          builder: (_, child) => Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox(
+                width: widget.size,
+                height: widget.size,
+                child: CircularProgressIndicator(
+                  value: _anim.value,
+                  strokeWidth: 9,
+                  backgroundColor: AppColors.slate600,
+                  color: widget.color,
+                  strokeCap: StrokeCap.round,
+                ),
               ),
-            ),
-            child!,
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(widget.value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500, color: t.textPrimary, height: 1)),
-            Text(widget.label.toUpperCase(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 0.88, color: t.textMuted)),
-          ],
+              child!,
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(widget.value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500, color: t.textPrimary, height: 1)),
+              Text(widget.label.toUpperCase(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 0.88, color: t.textMuted)),
+            ],
+          ),
         ),
       ),
     );

@@ -5,7 +5,9 @@ import '../providers/app_state.dart';
 import '../services/subscription_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/pro_gate.dart';
+import '../utils/sheet_padding.dart';
 import '../widgets/empty_state_card.dart';
+import '../widgets/user_avatar.dart';
 import '../widgets/feed_compose_sheet.dart';
 import '../widgets/premium_ui.dart';
 import '../widgets/shimmer_skeleton.dart';
@@ -77,7 +79,7 @@ class _FeedScreenState extends State<FeedScreen> {
       children: [
         AmbientBackground(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 80),
+            padding: EdgeInsets.fromLTRB(20, 4, 20, scrollBottomInset(context, extra: 96)),
             children: [
               StaggeredEntry(
                 index: 0,
@@ -147,13 +149,11 @@ class _FeedScreenState extends State<FeedScreen> {
                                 children: [
                                   Row(
                                     children: [
-                                      CircleAvatar(
+                                      UserAvatar(
+                                        imagePath: isMe ? state.user?.avatarPath : p['authorAvatarPath'] as String?,
+                                        name: isMe ? (state.displayName ?? 'You') : '${p['authorName']}',
                                         radius: 16,
-                                        backgroundColor: AppColors.accent.withValues(alpha: 0.15),
-                                        child: Text(
-                                          (isMe ? 'Y' : '${p['authorName']}'.substring(0, 1)).toUpperCase(),
-                                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.accent),
-                                        ),
+                                        showGradientFallback: false,
                                       ),
                                       const SizedBox(width: 10),
                                       Expanded(
@@ -270,7 +270,7 @@ class _FeedScreenState extends State<FeedScreen> {
         ),
         Positioned(
           right: 20,
-          bottom: 16,
+          bottom: scrollBottomInset(context, extra: 12),
           child: Semantics(
             identifier: 'feed-create-btn',
             button: true,

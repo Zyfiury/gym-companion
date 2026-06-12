@@ -1,10 +1,9 @@
-import '../data/uk_grocery_prices.dart';
 import '../models/user_data.dart';
 import 'backend_config.dart';
-import 'food_api_service.dart';
 import 'location_service.dart';
 import 'meal_variety_service.dart';
 import 'places_service.dart';
+import 'shopping_list_service.dart';
 
 enum PlanDuration { daily, weekly, monthly }
 
@@ -88,14 +87,12 @@ class CheapMealPlanService {
 
     final ingredients = <String>{};
     for (final m in meals) {
-      ingredients.addAll(m.ingredients);
-      if (m.ingredients.isEmpty) ingredients.add(m.name.split(' ').first.toLowerCase());
+      ingredients.addAll(MealVarietyService.ingredientsFor(m));
     }
-    final basket = ingredients.take(12).toList();
 
     final storeQuotes = <Map<String, dynamic>>[];
-    for (final store in supermarkets.take(4)) {
-      final quote = await _priceBasketAtStore(store.name, basket);
+    for (final store in supermarkets.take(8)) {
+      final quote = ShoppingListService.buildFromMeals(meals, store: store.name);
       storeQuotes.add({'store': store.name, ...quote});
     }
     storeQuotes.sort((a, b) => (a['total'] as double).compareTo(b['total'] as double));
@@ -142,34 +139,5 @@ class CheapMealPlanService {
           '${meals.length > 6 ? '\n…and ${meals.length - 6} more meals' : ''}\n'
           'Check the Food tab for your full plan.',
     );
-  }
-
-  static Future<Map<String, dynamic>> _priceBasketAtStore(String store, List<String> basket) async {
-    final multiplier = UkGroceryPrices.storeMultiplier(store);
-    final items = <Map<String, dynamic>>[];
-    var total = 0.0;
-    var estimatedCount = 0;
-
-    for (final ingredient in basket) {
-      final offHits = await FoodApiService.searchFood(ingredient);
-      final offName = offHits.isNotEmpty ? offHits.first['name'] as String? : null;
-      final base = UkGroceryPrices.lookupGbp(ingredient);
-      final price = (base ?? 2.20) * multiplier;
-      if (base == null) estimatedCount++;
-
-      items.add({
-        'item': offName ?? ingredient,
-        'quantity': '1',
-        'price': '£${price.toStringAsFixed(2)}',
-        'source': base != null ? 'uk_average' : 'estimate',
-      });
-      total += price;
-    }
-
-    return {
-      'items': items,
-      'total': double.parse(total.toStringAsFixed(2)),
-      'estimatedCount': estimatedCount,
-    };
   }
 }
