@@ -50,6 +50,7 @@ import '../services/location_service.dart';
 import '../services/fun_facts_service.dart';
 import '../utils/macro_helpers.dart';
 import '../utils/meal_type_helper.dart';
+import '../services/notification_service.dart';
 
 enum BackendMode { firebase, supabase, local }
 
@@ -272,6 +273,7 @@ class AppState extends ChangeNotifier {
     await refreshHealthData();
     await _migrateWorkoutPlanIfNeeded(uid);
     await _checkLocationPrompt();
+    await _refreshNotificationReminders();
     } catch (e, st) {
       debugPrint('Load user data failed: $e\n$st');
     }
@@ -289,6 +291,17 @@ class AppState extends ChangeNotifier {
     );
     await _saveUser(uid);
     notifyListeners();
+  }
+
+  Future<void> _refreshNotificationReminders() async {
+    if (user == null) return;
+    final pT = (user!.weeklyPlan.macros['protein'] ?? 140).round();
+    final pE = user!.dailyMacrosLogged.protein;
+    await NotificationService.refreshPersonalizedReminders(
+      streak: user!.gamification['streak'] as int? ?? 0,
+      goal: user!.goal.isEmpty ? 'maintain' : user!.goal,
+      proteinShort: (pT - pE).clamp(0, 500),
+    );
   }
 
   static const _locationPromptDismissedKey = 'location_prompt_dismissed';
@@ -740,10 +753,16 @@ class AppState extends ChangeNotifier {
       }
 
       notifyListeners();
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        return 'Permission denied. Open Settings → Health → Data Access → Gym Companion → allow Steps.';
+      }
       return 'Permission denied. Open Health Connect → App permissions → Gym Companion → allow Steps.';
     } catch (_) {
       healthConnected = false;
       notifyListeners();
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        return 'Could not connect to Apple Health. Check Health permissions in Settings.';
+      }
       return 'Could not connect. Try installing Health Connect and try again.';
     }
   }
@@ -1349,10 +1368,11 @@ class AppState extends ChangeNotifier {
       final chip = await _applyAiActions(groq.actions);
       if (!GroqChatService.isErrorOrEmpty(groq.displayText)) {
         reply = groq.displayText;
-      } else if (ruleResult.reply.isNotEmpty && !ruleResult.reply.startsWith("I'm Mara - I can")) {
-        reply = ruleResult.reply;
       } else {
-        reply = groq.displayText.isNotEmpty ? groq.displayText : ruleResult.reply;
+        final fallback = _rulesChat.process(text, user!);
+        reply = fallback.reply.startsWith("I'm Mara")
+            ? groq.displayText.isNotEmpty ? groq.displayText : fallback.reply
+            : fallback.reply;
       }
       chatMessages.add(ChatMessage(role: 'assistant', content: reply, actionChip: chip));
       await _saveChat(userId!);

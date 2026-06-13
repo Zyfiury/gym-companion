@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../core/theme/obsidian_palette.dart';
 import '../../theme/app_theme.dart';
 import 'obsidian_shell.dart';
 
@@ -30,6 +31,7 @@ class _OnboardingNavBarState extends State<OnboardingNavBar> {
 
   @override
   Widget build(BuildContext context) {
+    final o = context.obsidian;
     return ObsidianGlass(
       radius: ObsidianTokens.radiusLg,
       padding: EdgeInsets.fromLTRB(
@@ -43,7 +45,10 @@ class _OnboardingNavBarState extends State<OnboardingNavBar> {
           if (widget.showBack)
             TextButton(
               onPressed: widget.loading ? null : widget.onBack,
-              child: Text('Back', style: ObsidianTypography.body(size: 14, color: ObsidianTokens.textMuted, weight: FontWeight.w600)),
+              child: Text(
+                'Back',
+                style: ObsidianTypography.body(size: 14, color: o.textMuted, weight: FontWeight.w600),
+              ),
             ),
           Expanded(
             child: Semantics(
@@ -71,10 +76,10 @@ class _OnboardingNavBarState extends State<OnboardingNavBar> {
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: widget.loading
-                            ? ObsidianTokens.heroAccent.withValues(alpha: 0.6)
-                            : ObsidianTokens.heroAccent,
+                            ? o.heroAccent.withValues(alpha: 0.6)
+                            : o.heroAccent,
                         borderRadius: BorderRadius.circular(ObsidianTokens.radiusMd),
-                        boxShadow: ObsidianTokens.glassShadow(tint: ObsidianTokens.heroAccent),
+                        boxShadow: o.glassShadow(tint: o.heroAccent),
                       ),
                       child: widget.loading
                           ? SizedBox(
@@ -85,7 +90,7 @@ class _OnboardingNavBarState extends State<OnboardingNavBar> {
                                   width: 18,
                                   height: 18,
                                   child: CustomPaint(
-                                    painter: _ButtonSpinnerPainter(color: ObsidianTokens.textOnAccent),
+                                    painter: _ButtonSpinnerPainter(color: o.textOnAccent),
                                   ),
                                 ),
                               ),
@@ -94,9 +99,9 @@ class _OnboardingNavBarState extends State<OnboardingNavBar> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(widget.primaryLabel, style: ObsidianTypography.button()),
+                                Text(widget.primaryLabel, style: ObsidianTypography.button(color: o.textOnAccent)),
                                 SizedBox(width: ObsidianTokens.spacingSm),
-                                const Icon(Icons.arrow_forward_rounded, color: ObsidianTokens.textOnAccent, size: ObsidianTokens.spacingMd),
+                                Icon(Icons.arrow_forward_rounded, color: o.textOnAccent, size: ObsidianTokens.spacingMd),
                               ],
                             ),
                     ),

@@ -22,6 +22,21 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _local = FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
+  static int _streak = 0;
+  static String _goal = 'maintain';
+  static int _proteinShort = 0;
+
+  /// Refresh reminder copy from the signed-in user (call after login / data load).
+  static Future<void> refreshPersonalizedReminders({
+    int streak = 0,
+    String goal = 'maintain',
+    int proteinShort = 0,
+  }) async {
+    _streak = streak;
+    _goal = goal;
+    _proteinShort = proteinShort;
+    if (_initialized) await scheduleAllReminders();
+  }
 
   static Future<void> init() async {
     if (_initialized) return;
@@ -88,21 +103,29 @@ class NotificationService {
   }
 
   static Future<void> scheduleMorningBrief() async {
+    final body = _streak >= 3
+        ? '$_streak-day streak — check your workout and meals for today'
+        : 'Mara has your workout and meal plan ready';
     await _scheduleDaily(
       id: 1,
       hour: 8,
       title: '🌅 Morning brief',
-      body: 'Check your workout and meal plan for today',
+      body: body,
       channel: 'morning',
     );
   }
 
   static Future<void> scheduleEveningCheckIn() async {
+    final body = _proteinShort > 20
+        ? "You're ${_proteinShort}g protein short — log dinner to protect your streak"
+        : _streak > 0
+            ? "Don't break your $_streak-day streak — log food or training"
+            : 'Log your workout or meals to stay on track';
     await _scheduleDaily(
       id: 2,
       hour: 20,
-      title: "💪 Don't break your streak!",
-      body: 'Log your workout or meals to keep it going',
+      title: '💪 Evening check-in',
+      body: body,
       channel: 'evening',
     );
   }
@@ -111,10 +134,11 @@ class NotificationService {
     try {
       await _local.cancel(3);
       final scheduled = _nextSundayNineAm();
+      final goalLine = _goal == 'cut' ? 'cutting' : _goal == 'bulk' ? 'bulking' : 'maintaining';
       await _local.zonedSchedule(
         3,
-        '📊 Weekly insights ready',
-        'See your progress summary and plan for next week',
+        '📊 Weekly recap',
+        'See how your $goalLine week went and plan the next one',
         scheduled,
         const NotificationDetails(
           android: AndroidNotificationDetails('weekly', 'Weekly Insights'),

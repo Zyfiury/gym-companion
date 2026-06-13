@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../../core/theme/obsidian_palette.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/onboarding/nav_bar.dart';
 import '../../widgets/onboarding/obsidian_shell.dart';
@@ -11,6 +12,7 @@ class OnboardingWelcome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final o = context.obsidian;
     return ObsidianShell(
       child: SafeArea(
         child: Padding(
@@ -23,25 +25,25 @@ class OnboardingWelcome extends StatelessWidget {
                 width: ObsidianTokens.spacingXl * 2.5,
                 height: ObsidianTokens.spacingXl * 2.5,
                 decoration: BoxDecoration(
-                  color: ObsidianTokens.surfaceDark,
+                  color: o.surfaceDark,
                   borderRadius: BorderRadius.circular(ObsidianTokens.radiusLg),
-                  border: ObsidianTokens.glassBorderDecoration(),
-                  boxShadow: ObsidianTokens.glassShadow(),
+                  border: Border.all(color: o.glassBorder),
+                  boxShadow: o.glassShadow(),
                 ),
-                child: const Icon(Icons.fitness_center_rounded, color: ObsidianTokens.heroAccent, size: 40),
+                child: Icon(Icons.fitness_center_rounded, color: o.heroAccent, size: 40),
               )
                   .animate()
                   .fadeIn(duration: const Duration(milliseconds: ObsidianTokens.staggerMs))
                   .moveY(begin: 20, end: 0),
               SizedBox(height: ObsidianTokens.spacingLg),
-              Text('Build your\nprotocol', style: ObsidianTypography.displayLarge())
+              Text('Build your\nprotocol', style: ObsidianTypography.displayLarge(color: o.textPrimary))
                   .animate(delay: const Duration(milliseconds: ObsidianTokens.staggerMs))
                   .fadeIn()
                   .moveY(begin: 20, end: 0),
               SizedBox(height: ObsidianTokens.spacingSm),
               Text(
                 'Seven questions. Precision nutrition and training calibrated to your body.',
-                style: ObsidianTypography.body(),
+                style: ObsidianTypography.body(color: o.textSecondary),
               )
                   .animate(delay: const Duration(milliseconds: ObsidianTokens.staggerMs * 2))
                   .fadeIn()
@@ -53,9 +55,14 @@ class OnboardingWelcome extends StatelessWidget {
                   child: ObsidianGlass(
                     child: Row(
                       children: [
-                        Icon(e.value.$2, color: ObsidianTokens.heroAccent, size: ObsidianTokens.spacingMd + ObsidianTokens.spacingXs),
+                        Icon(e.value.$2, color: o.heroAccent, size: ObsidianTokens.spacingMd + ObsidianTokens.spacingXs),
                         SizedBox(width: ObsidianTokens.spacingMd),
-                        Expanded(child: Text(e.value.$1, style: ObsidianTypography.body(size: 14, color: ObsidianTokens.textPrimary, weight: FontWeight.w600))),
+                        Expanded(
+                          child: Text(
+                            e.value.$1,
+                            style: ObsidianTypography.body(size: 14, color: o.textPrimary, weight: FontWeight.w600),
+                          ),
+                        ),
                       ],
                     ),
                   )

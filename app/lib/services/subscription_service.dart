@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'backend_config.dart';
 
@@ -102,5 +103,16 @@ class SubscriptionService {
     } catch (_) {
       return false;
     }
+  }
+
+  /// Opens Play/App Store subscription management (required for store compliance).
+  static Future<bool> openManageSubscriptions() async {
+    final uri = defaultTargetPlatform == TargetPlatform.iOS
+        ? Uri.parse('https://apps.apple.com/account/subscriptions')
+        : Uri.parse('https://play.google.com/store/account/subscriptions');
+    if (await canLaunchUrl(uri)) {
+      return launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+    return false;
   }
 }

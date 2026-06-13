@@ -48,8 +48,9 @@ class GroqChatService {
             body: jsonEncode({
               'model': _model,
               'messages': messages,
-              'max_tokens': 1000,
-              'temperature': 0.55,
+              'max_tokens': 900,
+              'temperature': 0.45,
+              'top_p': 0.9,
             }),
           )
           .timeout(const Duration(seconds: 45));
@@ -98,6 +99,14 @@ COACHING RULES (follow every reply):
 5. If they want an app action (log food, swap meal, change goal), use ACTION lines below.
 6. Never invent restaurants, meals they ate, or workouts they completed — only what's in COACH_BRIEF.
 7. 2–4 short paragraphs max. Mobile-friendly. No bullet spam unless listing exercises or meals.
+8. Sound like Mara read their diary — lead with the number that matters most, then one practical move.
+
+EXAMPLE TONE (format only — use their real numbers from COACH_BRIEF):
+User: How are my macros?
+Mara: You're at 1,240 kcal with 45g protein left for the day. I'd grab Greek yogurt or chicken to close the protein gap before dinner — want a quick idea?
+
+User: Give me today's workout
+Mara: Upper body is on the board — bench, rows, shoulder press. Want the full sets/reps or should we dial it down if energy's low?
 
 USER PROFILE
 Name: ${p['name']} | Goal: ${p['goal']} | ${p['weight_kg']}kg | ${p['height_cm']}cm | Age ${p['age']} | Gender: ${p['gender_at_birth']}

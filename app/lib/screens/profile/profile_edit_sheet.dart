@@ -165,20 +165,26 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return ObsidianShell(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
+    final t = context.appTheme;
+    final titleStyle = ObsidianTypography.display(
+      size: 18,
+      weight: FontWeight.w700,
+      color: t.textPrimary,
+    );
+    final bodyStyle = ObsidianTypography.body(color: t.textPrimary);
+    final labelStyle = ObsidianTypography.label(color: t.textMuted);
+    final borderSide = BorderSide(color: t.borderSubtle);
+
+    return Scaffold(
+        backgroundColor: t.scaffold,
         appBar: AppBar(
-          backgroundColor: Colors.transparent,
+          backgroundColor: t.scaffold,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.close_rounded, color: ObsidianTokens.textPrimary),
+            icon: Icon(Icons.close_rounded, color: t.textPrimary),
             onPressed: () => Navigator.pop(context),
           ),
-          title: Text(
-            'Edit profile',
-            style: ObsidianTypography.display(size: 18, weight: FontWeight.w700),
-          ),
+          title: Text('Edit profile', style: titleStyle),
         ),
         body: SafeArea(
           child: Column(
@@ -280,13 +286,11 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
                       TextField(
                         controller: _ageCtrl,
                         keyboardType: TextInputType.number,
-                        style: ObsidianTypography.body(color: ObsidianTokens.textPrimary),
+                        style: bodyStyle,
                         decoration: InputDecoration(
                           labelText: 'Age',
-                          labelStyle: ObsidianTypography.label(),
-                          enabledBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(color: ObsidianTokens.glassBorder),
-                          ),
+                          labelStyle: labelStyle,
+                          enabledBorder: UnderlineInputBorder(borderSide: borderSide),
                         ),
                         onChanged: (_) => _recalcTdee(),
                       ),
@@ -311,26 +315,22 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
                       TextField(
                         controller: _budgetCtrl,
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        style: ObsidianTypography.body(color: ObsidianTokens.textPrimary),
+                        style: bodyStyle,
                         decoration: InputDecoration(
                           labelText: 'Weekly budget (£)',
-                          labelStyle: ObsidianTypography.label(),
-                          enabledBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(color: ObsidianTokens.glassBorder),
-                          ),
+                          labelStyle: labelStyle,
+                          enabledBorder: UnderlineInputBorder(borderSide: borderSide),
                         ),
                       ),
                       const SizedBox(height: ObsidianTokens.spacingMd),
                       DropdownButtonFormField<String>(
                         value: _nutritionMode,
-                        dropdownColor: ObsidianTokens.surfaceDark,
-                        style: ObsidianTypography.body(color: ObsidianTokens.textPrimary),
+                        dropdownColor: t.card,
+                        style: bodyStyle,
                         decoration: InputDecoration(
                           labelText: 'Nutrition mode',
-                          labelStyle: ObsidianTypography.label(),
-                          enabledBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(color: ObsidianTokens.glassBorder),
-                          ),
+                          labelStyle: labelStyle,
+                          enabledBorder: UnderlineInputBorder(borderSide: borderSide),
                         ),
                         items: const [
                           DropdownMenuItem(value: 'cook_myself', child: Text('Cook myself')),
@@ -342,13 +342,11 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
                       const SizedBox(height: ObsidianTokens.spacingMd),
                       TextField(
                         controller: _dietaryCtrl,
-                        style: ObsidianTypography.body(color: ObsidianTokens.textPrimary),
+                        style: bodyStyle,
                         decoration: InputDecoration(
                           labelText: 'Dietary restrictions',
-                          labelStyle: ObsidianTypography.label(),
-                          enabledBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(color: ObsidianTokens.glassBorder),
-                          ),
+                          labelStyle: labelStyle,
+                          enabledBorder: UnderlineInputBorder(borderSide: borderSide),
                         ),
                       ),
                     ],
@@ -362,7 +360,7 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
                     if (_step > 0)
                       TextButton(
                         onPressed: _saving ? null : () => setState(() => _step--),
-                        child: Text('Back', style: ObsidianTypography.body(color: ObsidianTokens.textMuted)),
+                        child: Text('Back', style: ObsidianTypography.body(color: t.textMuted)),
                       ),
                     const Spacer(),
                     if (_step < 2)
@@ -381,7 +379,6 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
             ],
           ),
         ),
-      ),
     );
   }
 }

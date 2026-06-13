@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_config.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/theme/theme_provider.dart';
+import '../../core/widgets/app_dialog.dart';
+import '../../core/widgets/app_toast.dart';
 import '../../models/user_data.dart';
 import '../../providers/app_state.dart';
 import '../../services/export_service.dart';
 import '../../services/subscription_service.dart';
-import '../../core/widgets/app_toast.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/sheet_padding.dart';
 import '../../utils/pro_gate.dart';
@@ -17,7 +21,7 @@ import '../../widgets/profile/profile_settings_row.dart';
 import '../../widgets/staggered_entry.dart';
 import '../paywall_screen.dart';
 
-class ProfileAccountTab extends StatelessWidget {
+class ProfileAccountTab extends ConsumerWidget {
   final UserData user;
   final String displayName;
 
@@ -33,21 +37,12 @@ class ProfileAccountTab extends StatelessWidget {
   }
 
   Future<void> _confirmDeleteAccount(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete account?'),
-        content: const Text(
-          'This permanently deletes your profile, logs, and chat history. This cannot be undone.',
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.redAccent)),
-          ),
-        ],
-      ),
+    final confirmed = await showAppConfirmDialog(
+      context,
+      title: 'Delete account?',
+      message: 'This permanently deletes your profile, logs, and chat history. This cannot be undone.',
+      confirmLabel: 'Delete',
+      destructive: true,
     );
     if (confirmed != true || !context.mounted) return;
     await context.read<AppState>().deleteAccount();
@@ -56,8 +51,16 @@ class ProfileAccountTab extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = context.appTheme;
+    final themeMode = ref.watch(themeModeProvider);
+    final platformBrightness = MediaQuery.platformBrightnessOf(context);
+    final isDark = resolveIsDark(themeMode, platformBrightness);
+    final themeLabel = switch (themeMode) {
+      ThemeMode.dark => 'Dark',
+      ThemeMode.light => 'Light',
+      ThemeMode.system => 'System',
+    };
 
     return ListView(
       padding: EdgeInsets.fromLTRB(16, 8, 16, scrollBottomInset(context, extra: 24)),
@@ -110,6 +113,15 @@ class ProfileAccountTab extends StatelessWidget {
                   child: Text('Account & legal', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: t.textPrimary)),
                 ),
                 ProfileSettingsRow(
+                  semanticsId: 'profile-theme-toggle',
+                  icon: isDark ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
+                  iconColor: context.appColors.primary,
+                  title: 'Appearance',
+                  subtitle: themeLabel,
+                  onTap: () => ref.read(themeModeProvider.notifier).toggle(),
+                ),
+                Divider(height: 1, color: t.borderSubtle.withValues(alpha: 0.5)),
+                ProfileSettingsRow(
                   semanticsId: 'profile-pro-upgrade',
                   icon: Icons.star_rounded,
                   iconColor: context.appColors.sand,
@@ -130,6 +142,18 @@ class ProfileAccountTab extends StatelessWidget {
                     } else {
                       AppToast.error(context, 'No active subscription found');
                     }
+                  },
+                ),
+                Divider(height: 1, color: t.borderSubtle.withValues(alpha: 0.5)),
+                ProfileSettingsRow(
+                  icon: Icons.subscriptions_outlined,
+                  title: 'Manage subscription',
+                  subtitle: 'Cancel or change plan',
+                  showChevron: false,
+                  onTap: () async {
+                    final ok = await SubscriptionService.openManageSubscriptions();
+                    if (!context.mounted) return;
+                    if (!ok) AppToast.error(context, 'Could not open subscription settings');
                   },
                 ),
                 Divider(height: 1, color: t.borderSubtle.withValues(alpha: 0.5)),
@@ -165,9 +189,9 @@ class ProfileAccountTab extends StatelessWidget {
             child: ProfileSettingsRow(
               semanticsId: 'delete-account-btn',
               icon: Icons.delete_forever_outlined,
-              iconColor: Colors.redAccent,
+              iconColor: context.appColors.error,
               title: 'Delete account',
-              titleColor: Colors.redAccent,
+              titleColor: context.appColors.error,
               showChevron: false,
               onTap: () => _confirmDeleteAccount(context),
             ),

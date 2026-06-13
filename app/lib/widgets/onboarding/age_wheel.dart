@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import '../../core/theme/obsidian_palette.dart';
 import '../../theme/app_theme.dart';
 import 'obsidian_shell.dart';
 
@@ -18,15 +19,19 @@ class SimpleAgePicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final o = context.obsidian;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           '$age',
-          style: ObsidianTypography.mono(size: ObsidianTokens.heroStatSize + ObsidianTokens.spacingMd),
+          style: ObsidianTypography.mono(
+            size: ObsidianTokens.heroStatSize + ObsidianTokens.spacingMd,
+            color: o.heroAccent,
+          ),
         ),
         SizedBox(height: ObsidianTokens.spacingXs),
-        Text('years old', style: ObsidianTypography.label(size: 13)),
+        Text('years old', style: ObsidianTypography.label(size: 13, color: o.textMuted)),
         SizedBox(height: ObsidianTokens.spacingLg),
         ObsidianGlass(
           padding: EdgeInsets.zero,
@@ -47,7 +52,7 @@ class SimpleAgePicker extends StatelessWidget {
                       '${i + 16}',
                       style: ObsidianTypography.mono(
                         size: 22,
-                        color: ObsidianTokens.textPrimary,
+                        color: o.textPrimary,
                         weight: FontWeight.w500,
                       ),
                     ),

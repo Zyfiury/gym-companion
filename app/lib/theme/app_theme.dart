@@ -8,6 +8,7 @@ export '../core/theme/app_theme.dart'
     show AppTheme, applySystemChrome, resolveIsDark;
 export '../core/theme/app_typography.dart';
 export '../core/theme/context_extensions.dart';
+export '../core/theme/obsidian_palette.dart';
 export '../core/theme/theme_provider.dart';
 
 import '../core/theme/app_spacing.dart';

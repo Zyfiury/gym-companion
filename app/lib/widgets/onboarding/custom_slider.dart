@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../core/theme/obsidian_palette.dart';
 import '../../theme/app_theme.dart';
 import 'obsidian_shell.dart';
 
@@ -32,17 +33,18 @@ class _ObsidianSliderState extends State<ObsidianSlider> {
 
   @override
   Widget build(BuildContext context) {
+    final o = context.obsidian;
     final pct = (widget.value - widget.min) / (widget.max - widget.min);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Text(widget.label, style: ObsidianTypography.label()),
+            Text(widget.label, style: ObsidianTypography.label(color: o.textMuted)),
             const Spacer(),
             Text(
               widget.labelFor(widget.value),
-              style: ObsidianTypography.mono(size: 14, color: ObsidianTokens.heroAccent),
+              style: ObsidianTypography.mono(size: 14, color: o.heroAccent),
             ),
           ],
         ),
@@ -69,12 +71,12 @@ class _ObsidianSliderState extends State<ObsidianSlider> {
                         vertical: ObsidianTokens.spacingXs,
                       ),
                       decoration: BoxDecoration(
-                        color: ObsidianTokens.heroAccent,
+                        color: o.heroAccent,
                         borderRadius: BorderRadius.circular(ObsidianTokens.radiusSm),
                       ),
                       child: Text(
                         widget.labelFor(widget.value),
-                        style: ObsidianTypography.mono(size: 12, color: ObsidianTokens.textOnAccent),
+                        style: ObsidianTypography.mono(size: 12, color: o.textOnAccent),
                       ),
                     ),
                   ),
@@ -87,7 +89,7 @@ class _ObsidianSliderState extends State<ObsidianSlider> {
                       Container(
                         height: ObsidianTokens.spacingXs,
                         decoration: BoxDecoration(
-                          color: ObsidianTokens.track,
+                          color: o.track,
                           borderRadius: BorderRadius.circular(ObsidianTokens.radiusPill),
                         ),
                       ),
@@ -96,11 +98,11 @@ class _ObsidianSliderState extends State<ObsidianSlider> {
                         child: Container(
                           height: ObsidianTokens.spacingXs,
                           decoration: BoxDecoration(
-                            color: ObsidianTokens.heroAccent,
+                            color: o.heroAccent,
                             borderRadius: BorderRadius.circular(ObsidianTokens.radiusPill),
                             boxShadow: [
                               BoxShadow(
-                                color: ObsidianTokens.heroAccent.withValues(alpha: 0.5),
+                                color: o.heroAccent.withValues(alpha: 0.5),
                                 blurRadius: 8,
                               ),
                             ],
@@ -112,7 +114,7 @@ class _ObsidianSliderState extends State<ObsidianSlider> {
                           trackHeight: 0,
                           activeTrackColor: Colors.transparent,
                           inactiveTrackColor: Colors.transparent,
-                          thumbShape: _GlowThumbShape(dragging: _dragging),
+                          thumbShape: _GlowThumbShape(dragging: _dragging, palette: o),
                           overlayShape: SliderComponentShape.noOverlay,
                         ),
                         child: Slider(
@@ -142,8 +144,9 @@ class _ObsidianSliderState extends State<ObsidianSlider> {
 
 class _GlowThumbShape extends SliderComponentShape {
   final bool dragging;
+  final ObsidianPalette palette;
 
-  const _GlowThumbShape({required this.dragging});
+  const _GlowThumbShape({required this.dragging, required this.palette});
 
   @override
   Size getPreferredSize(bool isEnabled, bool isDiscrete) {
@@ -172,15 +175,15 @@ class _GlowThumbShape extends SliderComponentShape {
       center + const Offset(0, 1),
       r,
       Paint()
-        ..color = ObsidianTokens.textPrimary.withValues(alpha: 0.35)
+        ..color = palette.textPrimary.withValues(alpha: 0.35)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
     );
-    canvas.drawCircle(center, r, Paint()..color = ObsidianTokens.textPrimary);
+    canvas.drawCircle(center, r, Paint()..color = palette.textPrimary);
     canvas.drawCircle(
       center,
       r - 2,
       Paint()
-        ..color = ObsidianTokens.heroAccent
+        ..color = palette.heroAccent
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2,
     );
@@ -196,11 +199,12 @@ class ObsidianHeroStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final o = context.obsidian;
     final child = Column(
       children: [
-        Text(value, style: ObsidianTypography.mono(size: ObsidianTokens.heroStatSize, weight: FontWeight.w500)),
+        Text(value, style: ObsidianTypography.mono(size: ObsidianTokens.heroStatSize, weight: FontWeight.w500, color: o.heroAccent)),
         SizedBox(height: ObsidianTokens.spacingXs),
-        Text(unit, style: ObsidianTypography.label(size: 12)),
+        Text(unit, style: ObsidianTypography.label(size: 12, color: o.textMuted)),
       ],
     );
     return semanticsId == null ? child : Semantics(identifier: semanticsId, child: child);

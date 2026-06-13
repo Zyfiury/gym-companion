@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../../core/theme/obsidian_palette.dart';
 import '../../theme/app_theme.dart';
 
 class GoalCard extends StatelessWidget {
@@ -25,6 +26,7 @@ class GoalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final o = context.obsidian;
     final card = GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
@@ -35,38 +37,38 @@ class GoalCard extends StatelessWidget {
         curve: Curves.easeOutCubic,
         padding: EdgeInsets.all(ObsidianTokens.spacingMd),
         decoration: BoxDecoration(
-          color: selected ? ObsidianTokens.heroAccent.withValues(alpha: 0.08) : ObsidianTokens.surfaceDark,
+          color: selected ? o.heroAccent.withValues(alpha: 0.12) : o.surfaceDark,
           borderRadius: BorderRadius.circular(ObsidianTokens.radiusMd),
           border: Border.all(
-            color: selected ? ObsidianTokens.heroAccent : ObsidianTokens.glassBorder,
+            color: selected ? o.heroAccent : o.glassBorder,
             width: selected ? 1.5 : 1,
           ),
-          boxShadow: selected ? ObsidianTokens.glassShadow(tint: ObsidianTokens.heroAccent) : null,
+          boxShadow: selected ? o.glassShadow(tint: o.heroAccent) : null,
         ),
         child: Row(
           children: [
             Container(
               padding: EdgeInsets.all(ObsidianTokens.spacingSm),
               decoration: BoxDecoration(
-                color: ObsidianTokens.heroAccent.withValues(alpha: selected ? 0.25 : 0.1),
+                color: o.heroAccent.withValues(alpha: selected ? 0.25 : 0.1),
                 borderRadius: BorderRadius.circular(ObsidianTokens.radiusSm),
               ),
-              child: Icon(icon, color: ObsidianTokens.heroAccent, size: ObsidianTokens.spacingMd + ObsidianTokens.spacingXs),
+              child: Icon(icon, color: o.heroAccent, size: ObsidianTokens.spacingMd + ObsidianTokens.spacingXs),
             ),
             SizedBox(width: ObsidianTokens.spacingMd),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: ObsidianTypography.display(size: 18, weight: FontWeight.w800)),
-                  Text(descriptor, style: ObsidianTypography.body(size: 13, color: ObsidianTokens.textMuted)),
+                  Text(title, style: ObsidianTypography.display(size: 18, weight: FontWeight.w800, color: o.textPrimary)),
+                  Text(descriptor, style: ObsidianTypography.body(size: 13, color: o.textMuted)),
                 ],
               ),
             ),
             AnimatedSwitcher(
               duration: const Duration(milliseconds: ObsidianTokens.springMs),
               child: selected
-                  ? const Icon(Icons.check_circle_rounded, key: ValueKey('on'), color: ObsidianTokens.heroAccent)
+                  ? Icon(Icons.check_circle_rounded, key: const ValueKey('on'), color: o.heroAccent)
                   : SizedBox(width: ObsidianTokens.spacingMd, key: const ValueKey('off')),
             ),
           ],
@@ -132,6 +134,7 @@ class _TdeeHeroDisplayState extends State<TdeeHeroDisplay> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
+    final o = context.obsidian;
     final child = AnimatedBuilder(
       animation: _count,
       builder: (context, _) {
@@ -142,11 +145,11 @@ class _TdeeHeroDisplayState extends State<TdeeHeroDisplay> with SingleTickerProv
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text('${_count.value}', style: ObsidianTypography.monoHero()),
+                Text('${_count.value}', style: ObsidianTypography.monoHero(color: o.heroAccent)),
                 SizedBox(width: ObsidianTokens.spacingSm),
                 Padding(
                   padding: EdgeInsets.only(bottom: ObsidianTokens.spacingSm),
-                  child: Text(widget.unit, style: ObsidianTypography.label(size: 12)),
+                  child: Text(widget.unit, style: ObsidianTypography.label(size: 12, color: o.textMuted)),
                 ),
               ],
             ),
@@ -155,7 +158,7 @@ class _TdeeHeroDisplayState extends State<TdeeHeroDisplay> with SingleTickerProv
               Text(
                 widget.subtitle!,
                 textAlign: TextAlign.center,
-                style: ObsidianTypography.body(size: 12, color: ObsidianTokens.textMuted),
+                style: ObsidianTypography.body(size: 12, color: o.textMuted),
               ),
             ],
           ],

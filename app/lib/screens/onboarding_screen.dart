@@ -137,15 +137,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final o = context.obsidian;
     if (_showWelcome) {
       return Scaffold(
-        backgroundColor: ObsidianTokens.base,
+        backgroundColor: o.base,
         body: OnboardingWelcome(onStart: () => setState(() => _showWelcome = false)),
       );
     }
 
     return Scaffold(
-      backgroundColor: ObsidianTokens.base,
+      backgroundColor: o.base,
       body: ObsidianShell(
         child: SafeArea(
           child: Padding(
@@ -155,7 +156,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               children: [
                 Semantics(
                   identifier: 'onboard-title',
-                  child: Text('SET UP YOUR PROFILE', style: ObsidianTypography.category()),
+                  child: Text('SET UP YOUR PROFILE', style: ObsidianTypography.category(color: o.textMuted)),
                 ),
                 SizedBox(height: ObsidianTokens.spacingSm),
                 OnboardingProgressBar(step: step, total: totalSteps),

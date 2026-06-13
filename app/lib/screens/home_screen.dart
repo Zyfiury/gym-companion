@@ -23,6 +23,7 @@ import '../features/home/weekly_goal_card.dart';
 import '../features/home/weekly_recap_card.dart';
 import '../features/home/fun_fact_card.dart';
 import '../core/widgets/animated_xp_bar.dart';
+import '../core/widgets/web_limit_banner.dart';
 import 'paywall_screen.dart';
 import 'profile/profile_screen.dart';
 import '../services/subscription_service.dart';
@@ -78,6 +79,7 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: tabListPadding(context),
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
+          const WebLimitBanner(),
           StaggeredEntry(
             index: 0,
             child: Semantics(

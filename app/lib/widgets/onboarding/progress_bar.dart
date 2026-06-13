@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../../core/theme/obsidian_palette.dart';
 import '../../theme/app_theme.dart';
 
 class OnboardingProgressBar extends StatelessWidget {
@@ -10,13 +11,14 @@ class OnboardingProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final o = context.obsidian;
     final progress = (step + 1) / total;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Step ${step + 1} of $total',
-          style: ObsidianTypography.label(size: 12),
+          style: ObsidianTypography.label(size: 12, color: o.textMuted),
         ),
         SizedBox(height: ObsidianTokens.spacingSm),
         ClipRRect(
@@ -26,11 +28,11 @@ class OnboardingProgressBar extends StatelessWidget {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                const ColoredBox(color: ObsidianTokens.track),
+                ColoredBox(color: o.track),
                 FractionallySizedBox(
                   alignment: Alignment.centerLeft,
                   widthFactor: progress,
-                  child: _ShimmerFill(progress: progress),
+                  child: _ShimmerFill(progress: progress, palette: o),
                 ),
               ],
             ),
@@ -43,13 +45,14 @@ class OnboardingProgressBar extends StatelessWidget {
 
 class _ShimmerFill extends StatelessWidget {
   final double progress;
+  final ObsidianPalette palette;
 
-  const _ShimmerFill({required this.progress});
+  const _ShimmerFill({required this.progress, required this.palette});
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(color: ObsidianTokens.heroAccent),
+      decoration: BoxDecoration(color: palette.heroAccent),
       child: Align(
         alignment: Alignment.centerLeft,
         child: Container(
@@ -57,16 +60,19 @@ class _ShimmerFill extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                ObsidianTokens.heroAccent.withValues(alpha: 0.0),
-                ObsidianTokens.textOnAccent.withValues(alpha: 0.35),
-                ObsidianTokens.heroAccent.withValues(alpha: 0.0),
+                palette.heroAccent.withValues(alpha: 0.0),
+                palette.textOnAccent.withValues(alpha: 0.35),
+                palette.heroAccent.withValues(alpha: 0.0),
               ],
               stops: const [0.0, 0.5, 1.0],
             ),
           ),
         )
             .animate(onPlay: (c) => c.repeat())
-            .shimmer(duration: const Duration(milliseconds: 2200), color: ObsidianTokens.textOnAccent.withValues(alpha: 0.25)),
+            .shimmer(
+              duration: const Duration(milliseconds: 2200),
+              color: palette.textOnAccent.withValues(alpha: 0.25),
+            ),
       ),
     );
   }

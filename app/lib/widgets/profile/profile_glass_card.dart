@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
-import '../onboarding/obsidian_shell.dart';
 import '../premium_ui.dart';
 
-/// Theme-aware elevated surface: glass blur in dark, shadowed card in light.
+/// Theme-aware elevated surface for profile sections.
 class ProfileGlassCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
@@ -18,9 +17,8 @@ class ProfileGlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (context.isDarkTheme) {
-      return ObsidianGlass(padding: padding, radius: AppRadius.card, child: child);
-    }
+    // ObsidianGlass uses the onboarding light palette (white fill) — never use it
+    // in dark mode or text becomes unreadable on white cards.
     return AppCard(padding: padding, bordered: bordered, child: child);
   }
 }

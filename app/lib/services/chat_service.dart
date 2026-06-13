@@ -286,11 +286,35 @@ class ChatService {
     }
 
     if (lower.contains('calories') && (lower.contains('eaten') || lower.contains('today') || lower.contains('how many'))) {
-      final logged = u.dailyMacrosLogged.calories;
-      final target = u.weeklyPlan.macros['calories'] ?? u.tdee;
-      final pct = target > 0 ? ((logged / target) * 100).round() : 0;
+      return ChatResult(reply: _calorieSnapshot(u));
+    }
+
+    if (_isMacroQuery(lower)) {
+      return ChatResult(reply: _macroSnapshot(u));
+    }
+
+    if (lower.contains('protein') && !lower.contains('high-protein') && !lower.contains('meal plan')) {
+      return ChatResult(reply: _proteinInsight(u));
+    }
+
+    if (lower.contains('streak') || lower.contains('how consistent')) {
+      return ChatResult(reply: _streakInsight(u));
+    }
+
+    if (lower.contains('water') && (lower.contains('how much') || lower.contains('logged') || lower.contains('drink'))) {
+      final litres = (u.water / 1000).toStringAsFixed(1);
+      final targetL = 2.5;
       return ChatResult(
-        reply: "You've logged $logged kcal today out of your $target kcal target ($pct%).",
+        reply: "You've logged ${litres}L water today. Aim for ~${targetL}L — tap the water card on Home to add a glass.",
+      );
+    }
+
+    if (lower.contains('budget') || lower.contains('spent') && lower.contains('food')) {
+      final spent = u.budgetSpent.toStringAsFixed(2);
+      final budget = u.weeklyBudget.toStringAsFixed(0);
+      final left = (u.weeklyBudget - u.budgetSpent).clamp(0, 10000).toStringAsFixed(0);
+      return ChatResult(
+        reply: "Food budget this week: £$spent of £$budget spent — £$left left. I'll keep meal suggestions within that.",
       );
     }
 
@@ -305,9 +329,10 @@ class ChatService {
       final w = u.weeklyPlan.workouts.where((x) => x.day == today).firstOrNull;
       if (w != null) {
         return ChatResult(
-          reply: '$today - ${w.focus}\n${w.exercises.map((e) => '• $e').join('\n')}',
+          reply: "Today's plan ($today — ${w.focus}):\n${w.exercises.map((e) => '• $e').join('\n')}\nWant me to adapt it if energy's low?",
         );
       }
+      return ChatResult(reply: 'Rest day today — recovery, light walk, or mobility. Want a meal plan instead?');
     }
 
     for (final entry in _dayMap.entries) {
@@ -369,13 +394,101 @@ class ChatService {
 
     if (RegExp(r'^(hi|hello|hey)').hasMatch(lower)) {
       return ChatResult(
-        reply: "Hey! I'm Mara, your gym companion ✅\nTry:\n• Swap my lunch\n• Give me today's workout\n• Log 200g chicken breast\n• I'm allergic to shellfish",
+        reply: "Hey! I'm Mara, your gym companion ✅\nTry:\n• How are my macros looking?\n• Give me today's workout\n• Log 200g chicken breast\n• Swap my lunch",
       );
     }
 
     return ChatResult(
-      reply: "I'm Mara - I can tweak your plan, log food, find delivery, and track progress. Try \"How are my macros looking?\" or \"Swap my lunch\".",
+      reply: "I'm Mara — I can log food, tweak your plan, and answer from your real numbers. Try \"How are my macros looking?\" or \"Give me today's workout\".",
     );
+  }
+
+  bool _isMacroQuery(String lower) {
+    return lower.contains('macro') ||
+        lower.contains('macros looking') ||
+        lower.contains('how am i doing') ||
+        lower.contains('how\'s my day') ||
+        lower.contains('hows my day') ||
+        (lower.contains('carb') && lower.contains('fat') && lower.contains('today'));
+  }
+
+  int _calorieTarget(UserData u) => (u.weeklyPlan.macros['calories'] ?? u.tdee).round();
+
+  String _calorieSnapshot(UserData u) {
+    final logged = u.dailyMacrosLogged.calories;
+    final target = _calorieTarget(u);
+    final rem = (target - logged).clamp(0, 100000);
+    final pct = target > 0 ? ((logged / target) * 100).round() : 0;
+    if (logged == 0) {
+      return "Nothing logged yet today — you're on a $target kcal target. Tell me what you've eaten or use the + button on Home.";
+    }
+    if (rem < 300) {
+      return "You're at $logged kcal ($pct% of $target) with only $rem kcal left. Keep dinner light or hit your protein first.";
+    }
+    return "You've logged $logged kcal today — $rem kcal left on your $target kcal target ($pct%).";
+  }
+
+  String _macroSnapshot(UserData u) {
+    final target = _calorieTarget(u);
+    final eaten = u.dailyMacrosLogged.calories;
+    final rem = (target - eaten).clamp(0, 100000);
+    final pE = u.dailyMacrosLogged.protein.round();
+    final pT = (u.weeklyPlan.macros['protein'] ?? 140).round();
+    final cE = u.dailyMacrosLogged.carbs.round();
+    final cT = (u.weeklyPlan.macros['carbs'] ?? 200).round();
+    final fE = u.dailyMacrosLogged.fat.round();
+    final fT = (u.weeklyPlan.macros['fat'] ?? 60).round();
+    final pShort = pT - pE;
+
+    final lines = <String>[
+      "Here's your day so far:",
+      '• Calories: $eaten / $target kcal ($rem left)',
+      '• Protein: ${pE}g / ${pT}g',
+      '• Carbs: ${cE}g / ${cT}g · Fat: ${fE}g / ${fT}g',
+    ];
+
+    if (eaten == 0) {
+      lines.add('Nothing logged yet — snap a meal or tell me what you ate.');
+    } else if (pShort > 25) {
+      lines.add("You're ${pShort}g protein short — Greek yogurt, chicken, or a shake would close that gap.");
+    } else if (rem < 400 && eaten > 0) {
+      lines.add('Running low on calories — pick something that hits protein without blowing the rest.');
+    } else {
+      lines.add('Solid balance so far. Want a meal idea for what\'s left?');
+    }
+    return lines.join('\n');
+  }
+
+  String _proteinInsight(UserData u) {
+    final pE = u.dailyMacrosLogged.protein.round();
+    final pT = (u.weeklyPlan.macros['protein'] ?? 140).round();
+    final short = pT - pE;
+    if (pE == 0) {
+      return "No protein logged yet — your target is ${pT}g. A chicken breast (~45g) or Greek yogurt (~15g) is an easy start.";
+    }
+    if (short <= 0) {
+      return "You're at ${pE}g protein — target hit ✅. Nice work.";
+    }
+    if (short <= 15) {
+      return "You're at ${pE}g / ${pT}g protein — almost there. A snack with ~${short}g protein seals it.";
+    }
+    return "You're at ${pE}g / ${pT}g protein — ${short}g to go. I'd grab chicken, eggs, or skyr before the day ends.";
+  }
+
+  String _streakInsight(UserData u) {
+    final streak = u.gamification['streak'] as int? ?? 0;
+    final level = u.gamification['level'] as int? ?? 1;
+    final xp = u.gamification['xp'] as int? ?? 0;
+    if (streak == 0) {
+      return "No active streak yet — log a workout or meal today to start one. You're Level $level ($xp XP).";
+    }
+    if (streak >= 14) {
+      return "$streak days straight — that's elite consistency. Level $level, $xp XP. Keep stacking.";
+    }
+    if (streak >= 7) {
+      return "$streak-day streak 🔥 Level $level ($xp XP). One more week and you're in rare territory.";
+    }
+    return "$streak-day streak — Level $level ($xp XP). Log something today to keep it alive.";
   }
 }
 
