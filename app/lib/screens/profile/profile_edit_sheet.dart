@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/navigation/app_router.dart';
 import '../../services/tdee_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/gradient_button.dart';
@@ -64,21 +65,19 @@ class ProfileEditSheet extends StatefulWidget {
       required String dietaryRestrictions,
     }) onSave,
   }) {
-    return Navigator.of(context).push(
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (_) => ProfileEditSheet(
-          goal: goal,
-          weight: weight,
-          height: height,
-          age: age,
-          tdee: tdee,
-          weeklyBudget: weeklyBudget,
-          nutritionMode: nutritionMode,
-          dietaryRestrictions: dietaryRestrictions,
-          genderAtBirth: genderAtBirth,
-          onSave: onSave,
-        ),
+    return AppRouter.pushSlide(
+      context,
+      ProfileEditSheet(
+        goal: goal,
+        weight: weight,
+        height: height,
+        age: age,
+        tdee: tdee,
+        weeklyBudget: weeklyBudget,
+        nutritionMode: nutritionMode,
+        dietaryRestrictions: dietaryRestrictions,
+        genderAtBirth: genderAtBirth,
+        onSave: onSave,
       ),
     );
   }
@@ -255,9 +254,9 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
                       ObsidianSlider(
                         label: 'WEIGHT',
                         value: _weight,
-                        min: 45,
+                        min: 30,
                         max: 130,
-                        divisions: 85,
+                        divisions: 100,
                         labelFor: (v) => '${v.round()} kg',
                         onChanged: (v) => setState(() {
                           _weight = v;

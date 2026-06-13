@@ -211,7 +211,7 @@ class _OnboardingNutritionCardState extends State<OnboardingNutritionCard> {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(ObsidianTokens.radiusMd),
                     gradient: LinearGradient(
-                      colors: [Colors.transparent, Colors.white.withValues(alpha: 0.08), Colors.transparent],
+                      colors: [Colors.transparent, ObsidianTokens.textOnAccent.withValues(alpha: 0.08), Colors.transparent],
                     ),
                   ),
                 ).animate().shimmer(duration: const Duration(milliseconds: 600)),

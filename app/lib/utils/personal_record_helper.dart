@@ -33,7 +33,7 @@ class PersonalRecordHelper {
   }
 
   static String formatValue(dynamic value, String unit) {
-    if (value == null) return '—';
+    if (value == null) return '-';
     final v = (value as num).toDouble();
     final text = v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(1);
     return unit.isEmpty ? text : '$text $unit';

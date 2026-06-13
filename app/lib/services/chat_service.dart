@@ -112,7 +112,7 @@ class ChatService {
       final w = u.customWorkouts.where((x) => x.name.toLowerCase().contains(name)).firstOrNull;
       if (w != null) {
         return ChatResult(
-          reply: '${w.name}:\n${w.exercises.map((e) => '• ${e.name} — ${e.sets}×${e.reps}, rest ${e.restSeconds}s').join('\n')}',
+          reply: '${w.name}:\n${w.exercises.map((e) => '• ${e.name} - ${e.sets}×${e.reps}, rest ${e.restSeconds}s').join('\n')}',
         );
       }
       return ChatResult(reply: 'No custom workout matching "$name". Create one in the Workout tab.');
@@ -137,7 +137,7 @@ class ChatService {
         );
       MealVarietyService.recordMeal(u, newMeal);
       return ChatResult(
-        reply: '✅ Swapped your $mealType to ${newMeal.name} — ${newMeal.description}. Check the Food tab.',
+        reply: '✅ Swapped your $mealType to ${newMeal.name} - ${newMeal.description}. Check the Food tab.',
         updatedUser: u,
       );
     }
@@ -165,7 +165,7 @@ class ChatService {
       return ChatResult(reply: '✅ Banned "$name" from future meal suggestions.', updatedUser: u);
     }
 
-    // "lose 10kg" is a goal — not "my weight is 10kg"
+    // "lose 10kg" is a goal - not "my weight is 10kg"
     final lossGoalRe = RegExp(
       r'(?:want\s+to\s+|wanna\s+|trying\s+to\s+|need\s+to\s+)?(?:lose|drop|shed)\s+(\d+(?:\.\d+)?)\s*k?g',
       caseSensitive: false,
@@ -204,14 +204,14 @@ class ChatService {
       if (deadlineWeeks != null) {
         feasibility = deadlineWeeks >= weeksNeeded
             ? 'Losing ${lossKg.toStringAsFixed(0)}kg in $deadlineWeeks weeks is realistic with a steady cut.'
-            : 'Losing ${lossKg.toStringAsFixed(0)}kg in $deadlineWeeks weeks is ambitious — aim for ~${(deadlineWeeks * 0.75).toStringAsFixed(0)}kg in that window, or extend the deadline.';
+            : 'Losing ${lossKg.toStringAsFixed(0)}kg in $deadlineWeeks weeks is ambitious - aim for ~${(deadlineWeeks * 0.75).toStringAsFixed(0)}kg in that window, or extend the deadline.';
       } else {
-        feasibility = 'Aim for ~0.5–1kg per week — about $weeksNeeded weeks for ${lossKg.toStringAsFixed(0)}kg.';
+        feasibility = 'Aim for ~0.5–1kg per week - about $weeksNeeded weeks for ${lossKg.toStringAsFixed(0)}kg.';
       }
 
       final weightNote = statedMatch != null ? '✅ Logged your weight as ${currentWeight.toStringAsFixed(0)}kg.\n' : '';
       return ChatResult(
-        reply: '${weightNote}✅ Set your goal to cutting — target ~${targetWeight.toStringAsFixed(0)}kg (${lossKg.toStringAsFixed(0)}kg to lose). Daily calories: $tdee kcal.\n$feasibility Want me to generate a cutting workout plan?',
+        reply: '${weightNote}✅ Set your goal to cutting - target ~${targetWeight.toStringAsFixed(0)}kg (${lossKg.toStringAsFixed(0)}kg to lose). Daily calories: $tdee kcal.\n$feasibility Want me to generate a cutting workout plan?',
         updatedUser: u,
       );
     }
@@ -266,14 +266,14 @@ class ChatService {
       final food = logFood.group(2)!.trim();
       final guard = AllergyGuard.checkText(food, UserAllergies.fromUser(u));
       if (!guard.isSafe) {
-        return ChatResult(reply: '⚠️ Blocked: $food — ${guard.message}');
+        return ChatResult(reply: '⚠️ Blocked: $food - ${guard.message}');
       }
       final cal = (grams * 1.65).round();
       final protein = (grams * 0.31).round();
       final carbs = (grams * 0.08).round();
       final fat = (grams * 0.05).round();
       return ChatResult(
-        reply: '✅ Logged ${grams}g $food — $cal kcal, P ${protein}g',
+        reply: '✅ Logged ${grams}g $food - $cal kcal, P ${protein}g',
         foodLogIntent: FoodLogIntent(
           name: food,
           calories: cal,
@@ -305,7 +305,7 @@ class ChatService {
       final w = u.weeklyPlan.workouts.where((x) => x.day == today).firstOrNull;
       if (w != null) {
         return ChatResult(
-          reply: '$today — ${w.focus}\n${w.exercises.map((e) => '• $e').join('\n')}',
+          reply: '$today - ${w.focus}\n${w.exercises.map((e) => '• $e').join('\n')}',
         );
       }
     }
@@ -315,7 +315,7 @@ class ChatService {
         final w = u.weeklyPlan.workouts.where((x) => x.day == entry.value).firstOrNull;
         if (w != null) {
           return ChatResult(
-            reply: '${entry.value} — ${w.focus}\n${w.exercises.map((e) => '• $e').join('\n')}',
+            reply: '${entry.value} - ${w.focus}\n${w.exercises.map((e) => '• $e').join('\n')}',
           );
         }
       }
@@ -369,12 +369,12 @@ class ChatService {
 
     if (RegExp(r'^(hi|hello|hey)').hasMatch(lower)) {
       return ChatResult(
-        reply: "Hey! I'm your AI coach. Try:\n• Set my weight to 72kg\n• Swap my lunch\n• I'm allergic to shellfish\n• Log 200g chicken breast",
+        reply: "Hey! I'm Mara, your gym companion ✅\nTry:\n• Swap my lunch\n• Give me today's workout\n• Log 200g chicken breast\n• I'm allergic to shellfish",
       );
     }
 
     return ChatResult(
-      reply: 'I can update your profile, show workouts, track calories, swap meals, or manage allergies. Try: "Swap my lunch" or "I\'m allergic to dairy"',
+      reply: "I'm Mara - I can tweak your plan, log food, find delivery, and track progress. Try \"How are my macros looking?\" or \"Swap my lunch\".",
     );
   }
 }

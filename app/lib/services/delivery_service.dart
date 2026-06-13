@@ -200,7 +200,7 @@ class DeliveryService {
     final header = dineIn ? '🍽 Restaurants near $area' : '🍽 Fast food & takeaway near $area';
     final buffer = StringBuffer()
       ..writeln('$header (${calLeft > 0 ? '$calLeft kcal left today' : 'macros logged'}):')
-      ..writeln('Real places from Google Maps — dishes matched to published chain menus or Open Food Facts.')
+      ..writeln('Real places from Google Maps - dishes matched to published chain menus or Open Food Facts.')
       ..writeln();
 
     for (var i = 0; i < top.length; i++) {
@@ -209,7 +209,7 @@ class DeliveryService {
       final stars = o.rating > 0 ? ' ⭐${o.rating.toStringAsFixed(1)}' : '';
       final src = o.nutritionSource != null ? ' (${o.nutritionSource})' : '';
       buffer.writeln('${i + 1}. **${o.restaurant}**$stars$dist');
-      buffer.writeln('   ${o.dish} — ${o.calories} kcal, ${o.protein}g protein · ${o.price}$src');
+      buffer.writeln('   ${o.dish} - ${o.calories} kcal, ${o.protein}g protein · ${o.price}$src');
       buffer.writeln('   ${o.address}');
       if (i < top.length - 1) buffer.writeln();
     }

@@ -6,6 +6,7 @@ import '../config/app_config.dart';
 import '../providers/app_state.dart';
 import '../services/auth_service.dart';
 import '../services/backend_config.dart';
+import '../core/theme/brand_colors.dart';
 import '../theme/app_theme.dart';
 import '../utils/auth_validator.dart';
 import '../widgets/auth/password_strength_meter.dart';
@@ -135,7 +136,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = AuthValidator.normalizeEmail(_email.text);
     await _run(() async {
       await context.read<AppState>().resetPassword(email);
-      setState(() => _info = 'Password reset email sent — check your inbox');
+      setState(() => _info = 'Password reset email sent - check your inbox');
     });
   }
 
@@ -205,7 +206,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       StaggeredEntry(
                         index: 2,
                         child: Text(
-                          'Training, nutrition, and progress —\nin one place.',
+                          'Training, nutrition, and progress -\nin one place.',
                           textAlign: TextAlign.center,
                           style: TextStyle(fontSize: 15, height: 1.45, color: t.textSecondary),
                         ),
@@ -336,7 +337,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                                       onChanged: _loading
                                                           ? null
                                                           : (v) => setState(() => _termsAccepted = v ?? false),
-                                                      activeColor: AppColors.accent,
+                                                      activeColor: context.appColors.primary,
                                                       side: BorderSide(color: t.textMuted),
                                                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                                     ),
@@ -353,7 +354,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                                             style: TextStyle(
                                                               fontSize: 12,
                                                               fontWeight: FontWeight.w600,
-                                                              color: AppColors.accent,
+                                                              color: context.appColors.primary,
                                                               decoration: TextDecoration.underline,
                                                             ),
                                                           ),
@@ -366,7 +367,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                                             style: TextStyle(
                                                               fontSize: 12,
                                                               fontWeight: FontWeight.w600,
-                                                              color: AppColors.accent,
+                                                              color: context.appColors.primary,
                                                               decoration: TextDecoration.underline,
                                                             ),
                                                           ),
@@ -401,7 +402,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ],
                                       if (_info != null) ...[
                                         const SizedBox(height: 4),
-                                        _MessageBanner(text: _info!, color: AppColors.emerald),
+                                        _MessageBanner(text: _info!, color: context.appColors.mint),
                                       ],
                                       const SizedBox(height: 16),
                                       Semantics(
@@ -520,7 +521,7 @@ class _SocialButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 18),
         decoration: BoxDecoration(
-          color: context.isDarkTheme ? t.card : Colors.white,
+          color: context.isDarkTheme ? t.card : context.appColors.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: t.borderSubtle),
           boxShadow: context.isDarkTheme ? null : [BoxShadow(color: t.shadow, blurRadius: 10, offset: const Offset(0, 3))],
@@ -555,7 +556,7 @@ class _GoogleGlyphPainter extends CustomPainter {
     final r = size.width / 2;
     final center = Offset(r, r);
     final stroke = size.width * 0.18;
-    final colors = [const Color(0xFF4285F4), const Color(0xFF34A853), const Color(0xFFFBBC05), const Color(0xFFEA4335)];
+    final colors = BrandColors.googleGlyph;
     for (var i = 0; i < 4; i++) {
       final paint = Paint()
         ..color = colors[i]

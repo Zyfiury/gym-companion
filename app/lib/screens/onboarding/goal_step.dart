@@ -47,6 +47,14 @@ class GoalStep extends StatelessWidget {
       genderAtBirth: genderAtBirth,
     );
     final displayCalories = goal.isEmpty ? plan.maintenance : plan.target;
+    final macros = TdeeService.deriveMacros(calories: displayCalories, weightKg: weight);
+    final split = goal.isEmpty
+        ? null
+        : TdeeService.splitDayTargets(
+            trainingDayCalories: displayCalories,
+            baseMacros: macros,
+            goal: goal,
+          );
 
     return ListView(
       children: [
@@ -77,6 +85,48 @@ class GoalStep extends StatelessWidget {
         Center(
           child: Text(inputsLine, style: ObsidianTypography.body(size: 13, color: ObsidianTokens.textMuted)),
         ),
+        if (split != null) ...[
+          SizedBox(height: ObsidianTokens.spacingLg),
+          Container(
+            padding: EdgeInsets.all(ObsidianTokens.spacingMd),
+            decoration: BoxDecoration(
+              color: ObsidianTokens.surfaceMuted,
+              borderRadius: BorderRadius.circular(ObsidianTokens.radiusMd),
+              border: Border.all(color: ObsidianTokens.glassBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('TRAINING VS REST DAYS', style: ObsidianTypography.label(size: 11)),
+                SizedBox(height: ObsidianTokens.spacingSm),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Training', style: ObsidianTypography.body(size: 12, color: ObsidianTokens.textMuted)),
+                          Text('${split.training} kcal', style: ObsidianTypography.mono(size: 18)),
+                          Text('${split.trainingCarbs}g carbs', style: ObsidianTypography.body(size: 11, color: ObsidianTokens.textSecondary)),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Rest', style: ObsidianTypography.body(size: 12, color: ObsidianTokens.textMuted)),
+                          Text('${split.rest} kcal', style: ObsidianTypography.mono(size: 18)),
+                          Text('${split.restCarbs}g carbs', style: ObsidianTypography.body(size: 11, color: ObsidianTokens.textSecondary)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
         SizedBox(height: ObsidianTokens.spacingLg),
         Text('SEX AT BIRTH', style: ObsidianTypography.label()),
         SizedBox(height: ObsidianTokens.spacingSm),
@@ -105,9 +155,9 @@ class GoalStep extends StatelessWidget {
         ObsidianSlider(
           label: 'WEIGHT',
           value: weight,
-          min: 45,
+          min: 30,
           max: 130,
-          divisions: 85,
+          divisions: 100,
           labelFor: (v) => '${v.round()} kg',
           onChanged: onWeightChanged,
         ),

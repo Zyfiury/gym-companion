@@ -6,6 +6,7 @@ import 'meal_variety_service.dart';
 class StorageService {
   static const _themeKey = 'gymapp_theme';
   static const _coachPeriodKey = 'coachContextPeriod';
+  static const _coachOpenerDateKey = 'coachOpenerDate';
 
   String _userKey(String userId) => 'gymapp_user_$userId';
   String _chatKey(String userId) => 'gymapp_chat_$userId';
@@ -124,5 +125,15 @@ class StorageService {
   Future<void> setCoachContextPeriod(String period) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_coachPeriodKey, period);
+  }
+
+  Future<String?> getCoachOpenerDate() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_coachOpenerDateKey);
+  }
+
+  Future<void> setCoachOpenerDate(String date) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_coachOpenerDateKey, date);
   }
 }

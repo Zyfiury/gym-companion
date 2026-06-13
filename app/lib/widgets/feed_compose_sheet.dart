@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/xp_rewards.dart';
 import '../providers/app_state.dart';
+import '../core/widgets/app_toast.dart';
 import '../theme/app_theme.dart';
 import '../utils/sheet_padding.dart';
 
@@ -21,7 +22,7 @@ Future<void> showFeedComposeSheet(
 
   String workoutLabel = 'No workout logged today';
   if (state.todayWorkoutSessionId != null) {
-    workoutLabel = '${state.todayWorkoutName ?? 'Workout'} — ${state.todayWorkoutStatus.name}';
+    workoutLabel = '${state.todayWorkoutName ?? 'Workout'} - ${state.todayWorkoutStatus.name}';
   }
 
   return showModalBottomSheet(
@@ -79,7 +80,7 @@ Future<void> showFeedComposeSheet(
                           () {
                             activityId = entry['id'] as String?;
                             activityCollection = 'food_entries';
-                            contentCtrl.text = 'Logged ${entry['food']} — ${entry['calories']} kcal';
+                            contentCtrl.text = 'Logged ${entry['food']} - ${entry['calories']} kcal';
                           },
                         )),
                   if (postType == 'pr' && u.personalRecords.isNotEmpty)
@@ -92,7 +93,7 @@ Future<void> showFeedComposeSheet(
                           () {
                             activityId = pr['id'] as String?;
                             activityCollection = 'personal_records';
-                            contentCtrl.text = 'New PR 🏋️ ${pr['exercise']} — ${pr['value']}${pr['unit'] ?? 'kg'}';
+                            contentCtrl.text = 'New PR 🏋️ ${pr['exercise']} - ${pr['value']}${pr['unit'] ?? 'kg'}';
                           },
                         )),
                   const SizedBox(height: 8),
@@ -118,15 +119,13 @@ Future<void> showFeedComposeSheet(
                   child: SizedBox(
                     width: double.infinity,
                     child: FilledButton(
-                      style: FilledButton.styleFrom(backgroundColor: AppColors.accent),
+                      style: FilledButton.styleFrom(backgroundColor: context.appColors.primary),
                       onPressed: () async {
                         final content = contentCtrl.text.trim();
                         if (content.isEmpty) return;
                         final needsLink = postType == 'workout' || postType == 'meal' || postType == 'pr';
                         if (needsLink && (activityId == null || activityId!.isEmpty)) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(
-                            const SnackBar(content: Text('Link an activity to earn linked post XP')),
-                          );
+                          AppToast.error(ctx, 'Link an activity to earn linked post XP');
                           return;
                         }
                         await ctx.read<AppState>().addFeedPost(
@@ -138,7 +137,7 @@ Future<void> showFeedComposeSheet(
                             );
                         if (ctx.mounted) {
                           Navigator.pop(ctx);
-                          ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Posted!')));
+                          AppToast.success(ctx, 'Posted to feed ✓');
                         }
                       },
                       child: const Text('Post'),

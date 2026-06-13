@@ -4,7 +4,7 @@ import '../theme/app_theme.dart';
 import 'premium_ui.dart';
 import 'staggered_entry.dart';
 
-/// Brand mark — fitness-focused, not generic AI sparkle.
+/// Brand mark - fitness-focused, not generic AI sparkle.
 class BrandMark extends StatelessWidget {
   final double size;
 
@@ -18,12 +18,12 @@ class BrandMark extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceElevated : Colors.white,
+        color: isDark ? context.appColors.surface2 : context.appColors.surface,
         borderRadius: BorderRadius.circular(size * 0.28),
-        border: Border.all(color: isDark ? t.borderSubtle : Colors.white, width: 1.5),
+        border: Border.all(color: isDark ? t.borderSubtle : context.appColors.surface, width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: AppColors.accent.withValues(alpha: isDark ? 0.2 : 0.18),
+            color: context.appColors.primary.withValues(alpha: isDark ? 0.2 : 0.18),
             blurRadius: 24,
             offset: const Offset(0, 10),
           ),
@@ -33,14 +33,14 @@ class BrandMark extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          Icon(Icons.fitness_center_rounded, size: size * 0.42, color: AppColors.accent),
+          Icon(Icons.fitness_center_rounded, size: size * 0.42, color: context.appColors.primary),
           Positioned(
             top: size * 0.14,
             right: size * 0.14,
             child: Container(
               width: size * 0.14,
               height: size * 0.14,
-              decoration: const BoxDecoration(color: AppColors.orange, shape: BoxShape.circle),
+              decoration: BoxDecoration(color: context.appColors.sand, shape: BoxShape.circle),
             ),
           ),
         ],
@@ -83,7 +83,7 @@ class AuthPillTabs extends StatelessWidget {
                 curve: Curves.easeOutCubic,
                 padding: const EdgeInsets.symmetric(vertical: 11),
                 decoration: BoxDecoration(
-                  color: active ? (context.isDarkTheme ? AppColors.surfaceCard : Colors.white) : Colors.transparent,
+                  color: active ? (context.isDarkTheme ? context.appColors.surface : context.appColors.surface) : Colors.transparent,
                   borderRadius: BorderRadius.circular(10),
                   boxShadow: active && !context.isDarkTheme
                       ? [BoxShadow(color: t.shadow, blurRadius: 8, offset: const Offset(0, 2))]
@@ -161,7 +161,7 @@ class _AuthFieldState extends State<AuthField> {
       decoration: InputDecoration(
         labelText: widget.label,
         hintText: widget.hint,
-        prefixIcon: Icon(widget.icon, size: 20, color: hasError ? Colors.redAccent : t.textMuted),
+        prefixIcon: Icon(widget.icon, size: 20, color: hasError ? context.appColors.error : t.textMuted),
         suffixIcon: widget.showPasswordToggle
             ? IconButton(
                 icon: Icon(
@@ -178,25 +178,25 @@ class _AuthFieldState extends State<AuthField> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: hasError ? Colors.redAccent.withValues(alpha: 0.6) : t.borderSubtle.withValues(alpha: 0.5)),
+          borderSide: BorderSide(color: hasError ? context.appColors.error.withValues(alpha: 0.6) : t.borderSubtle.withValues(alpha: 0.5)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: hasError ? Colors.redAccent : AppColors.accent, width: 1.5),
+          borderSide: BorderSide(color: hasError ? context.appColors.error : context.appColors.primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.redAccent.withValues(alpha: 0.8)),
+          borderSide: BorderSide(color: context.appColors.error.withValues(alpha: 0.8)),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
+          borderSide: BorderSide(color: context.appColors.error, width: 1.5),
         ),
         errorText: hasError ? widget.errorText : null,
         errorStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
         labelStyle: TextStyle(color: t.textMuted, fontSize: 13),
         floatingLabelStyle: TextStyle(
-          color: hasError ? Colors.redAccent : AppColors.accent,
+          color: hasError ? context.appColors.error : context.appColors.primary,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -234,7 +234,7 @@ class OnboardingProgressHeader extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: AppColors.accent,
+                color: context.appColors.primary,
                 letterSpacing: 1.2,
               ),
             ),
@@ -253,7 +253,7 @@ class OnboardingProgressHeader extends StatelessWidget {
             builder: (context, v, child) => LinearProgressIndicator(
               value: v,
               backgroundColor: t.progressTrack,
-              color: AppColors.accent,
+              color: context.appColors.primary,
               minHeight: 5,
             ),
           ),
@@ -445,7 +445,7 @@ class MetricAdjuster extends StatelessWidget {
               min: min,
               max: max,
               divisions: divisions,
-              activeColor: AppColors.accent,
+              activeColor: context.appColors.primary,
               inactiveColor: t.progressTrack,
               onChanged: onSliderChanged,
             ),
@@ -571,16 +571,16 @@ class OnboardingChoiceChip extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? AppColors.accent.withValues(alpha: context.isDarkTheme ? 0.22 : 0.12) : t.inputFill,
+          color: selected ? context.appColors.primary.withValues(alpha: context.isDarkTheme ? 0.22 : 0.12) : t.inputFill,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: selected ? AppColors.accent : t.borderSubtle),
+          border: Border.all(color: selected ? context.appColors.primary : t.borderSubtle),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 13,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            color: selected ? AppColors.accent : t.textSecondary,
+            color: selected ? context.appColors.primary : t.textSecondary,
           ),
         ),
       ),

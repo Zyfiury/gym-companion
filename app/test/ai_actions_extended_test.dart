@@ -21,4 +21,13 @@ ACTION:COMPLETE_WORKOUT:Push Day
     expect(actions.first.type, 'UPDATE_WEIGHT');
     expect(actions.first.data['weight_kg'], 75.5);
   });
+
+  test('parses SET_GOAL action', () {
+    const raw = 'ACTION:SET_GOAL:protein:150:5';
+    final actions = GroqChatService.parseActions(raw);
+    expect(actions.first.type, 'SET_GOAL');
+    expect(actions.first.data['type'], 'protein');
+    expect(actions.first.data['targetValue'], 150.0);
+    expect(actions.first.data['targetDays'], 5);
+  });
 }

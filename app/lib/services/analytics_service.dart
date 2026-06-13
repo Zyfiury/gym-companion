@@ -3,7 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'backend_config.dart';
 
-/// Firebase Analytics — no-ops when Firebase is unavailable.
+/// Firebase Analytics - no-ops when Firebase is unavailable.
 class AnalyticsService {
   static FirebaseAnalytics? get _analytics {
     if (!BackendConfig.hasFirebase || Firebase.apps.isEmpty) return null;

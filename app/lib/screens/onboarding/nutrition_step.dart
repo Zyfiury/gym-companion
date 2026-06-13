@@ -23,7 +23,7 @@ class NutritionStep extends StatelessWidget {
         ObsidianStepHeader(
           category: 'Lifestyle',
           title: 'How do you eat?',
-          subtitle: 'Kitchen, delivery, or dining out — we plan around it.',
+          subtitle: 'Kitchen, delivery, or dining out - we plan around it.',
           index: 6,
         )
             .animate()

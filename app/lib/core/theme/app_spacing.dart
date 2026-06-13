@@ -1,4 +1,4 @@
-/// Sea Mist spacing and corner radii — soft, rounded, breathable.
+/// Sea Mist spacing and corner radii - soft, rounded, breathable.
 class AppSpacing {
   AppSpacing._();
 

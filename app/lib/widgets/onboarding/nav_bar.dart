@@ -80,9 +80,14 @@ class _OnboardingNavBarState extends State<OnboardingNavBar> {
                           ? SizedBox(
                               width: ObsidianTokens.spacingMd + ObsidianTokens.spacingXs,
                               height: ObsidianTokens.spacingMd + ObsidianTokens.spacingXs,
-                              child: const CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: ObsidianTokens.textOnAccent,
+                              child: Center(
+                                child: SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CustomPaint(
+                                    painter: _ButtonSpinnerPainter(color: ObsidianTokens.textOnAccent),
+                                  ),
+                                ),
                               ),
                             )
                           : Row(
@@ -104,4 +109,28 @@ class _OnboardingNavBarState extends State<OnboardingNavBar> {
       ),
     );
   }
+}
+
+class _ButtonSpinnerPainter extends CustomPainter {
+  final Color color;
+  _ButtonSpinnerPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(
+      Rect.fromLTWH(0, 0, size.width, size.height),
+      0,
+      4.5,
+      false,
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

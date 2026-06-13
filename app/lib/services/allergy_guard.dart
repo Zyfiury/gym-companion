@@ -1,4 +1,4 @@
-/// Allergy Guard — blocks unsafe foods, meals, and video titles.
+/// Allergy Guard - blocks unsafe foods, meals, and video titles.
 class AllergyGuard {
   static const allergenKeywords = {
     'peanuts': ['peanut', 'peanuts', 'groundnut'],
@@ -86,5 +86,5 @@ class GuardResult {
 
   String get message => isSafe
       ? 'Safe for your profile.'
-      : 'Contains ${conflicts.join(', ')} — blocked due to your allergies/preferences.';
+      : 'Contains ${conflicts.join(', ')} - blocked due to your allergies/preferences.';
 }

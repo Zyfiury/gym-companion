@@ -16,7 +16,7 @@ void main() {
       ),
     );
 
-    // Avoid pumpAndSettle — splash/login may have endlessly animating widgets.
+    // Avoid pumpAndSettle - splash/login may have endlessly animating widgets.
     for (var i = 0; i < 80; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }

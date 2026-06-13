@@ -17,7 +17,7 @@ class TdeeUpdateBanner extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Material(
-        color: AppColors.accent.withValues(alpha: 0.12),
+        color: context.appColors.primary.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
@@ -29,7 +29,7 @@ class TdeeUpdateBanner extends StatelessWidget {
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                const Icon(Icons.info_outline, color: AppColors.accent, size: 20),
+                Icon(Icons.info_outline, color: context.appColors.primary, size: 20),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(

@@ -20,3 +20,15 @@ class PendingTdeeUpdate {
 
   const PendingTdeeUpdate({required this.oldTarget, required this.newTarget});
 }
+
+class PendingGoalCelebration {
+  final String goalLabel;
+  final int daysAchieved;
+  final int targetDays;
+
+  const PendingGoalCelebration({
+    required this.goalLabel,
+    required this.daysAchieved,
+    required this.targetDays,
+  });
+}

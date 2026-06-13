@@ -2,7 +2,7 @@ import '../models/user_data.dart';
 import 'location_service.dart';
 import 'places_service.dart';
 
-/// Resolves which shop to use for pricing and grocery links — any nearby store, not fixed chains.
+/// Resolves which shop to use for pricing and grocery links - any nearby store, not fixed chains.
 class StoreService {
   static const defaultLabel = 'Local store';
 

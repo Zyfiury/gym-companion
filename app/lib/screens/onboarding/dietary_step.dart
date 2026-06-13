@@ -23,7 +23,7 @@ class DietaryStep extends StatelessWidget {
         ObsidianStepHeader(
           category: 'Nutrition',
           title: 'Dietary preferences',
-          subtitle: 'Pick any that apply — meal plans will follow these.',
+          subtitle: 'Pick any that apply - meal plans will follow these.',
           index: 3,
         )
             .animate()

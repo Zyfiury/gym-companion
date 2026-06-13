@@ -2,7 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-/// Firebase config from `.env` — populated after `flutterfire configure` or manually.
+/// Firebase config from `.env` - populated after `flutterfire configure` or manually.
 class DefaultFirebaseOptions {
   static FirebaseOptions? get currentPlatform {
     final apiKey = (dotenv.env['FIREBASE_API_KEY'] ?? '').trim();

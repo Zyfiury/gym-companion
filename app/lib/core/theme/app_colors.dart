@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'app_colors_extension.dart';
 
-/// Legacy color access — prefer [AppColorsExtension] via `context.appColors`.
+/// Legacy color access - prefer [AppColorsExtension] via `context.appColors`.
 class AppColors {
   AppColors._();
 

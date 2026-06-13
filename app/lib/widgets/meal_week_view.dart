@@ -28,7 +28,7 @@ class MealWeekView extends StatelessWidget {
               .map((m) => ListTile(
                     dense: true,
                     title: Text('${m.mealType}: ${m.name}', style: TextStyle(color: t.textPrimary)),
-                    trailing: Text('${m.macros['calories']} kcal', style: TextStyle(color: AppColors.accent, fontSize: 12)),
+                    trailing: Text('${m.macros['calories']} kcal', style: TextStyle(color: context.appColors.primary, fontSize: 12)),
                   ))
               .toList(),
         );

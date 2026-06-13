@@ -27,7 +27,7 @@ class ProfileSettingsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.appTheme;
-    final color = iconColor ?? AppColors.accent;
+    final color = iconColor ?? context.appColors.primary;
 
     final row = PressableScale(
       onTap: onTap,

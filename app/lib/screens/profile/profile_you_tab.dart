@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../models/user_data.dart';
 import '../../providers/app_state.dart';
+import '../../services/achievement_service.dart';
+import '../../core/widgets/animated_xp_bar.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/premium_ui.dart';
 import '../../widgets/profile/profile_glass_card.dart';
@@ -44,7 +46,6 @@ class ProfileYouTab extends StatelessWidget {
     final level = g['level'] as int? ?? 1;
     final streak = g['streak'] as int? ?? 0;
     final xpInLevel = xp % 100;
-    final xpProgress = xpInLevel / 100.0;
     final budgetPct = user.weeklyBudget > 0 ? (user.budgetSpent / user.weeklyBudget).clamp(0.0, 1.0) : 0.0;
 
     return Column(
@@ -73,7 +74,7 @@ class ProfileYouTab extends StatelessWidget {
                     padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
-                        Icon(Icons.info_outline_rounded, color: AppColors.ember, size: 20),
+                        Icon(Icons.info_outline_rounded, color: context.appColors.sand, size: 20),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
@@ -111,10 +112,7 @@ class ProfileYouTab extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: AnimatedProgressBar(value: xpProgress, color: AppColors.volt, trackColor: t.progressTrack, height: 6),
-                      ),
+                      AnimatedXpBar(xp: xp, level: level),
                     ],
                   ),
                 ),
@@ -141,7 +139,7 @@ class ProfileYouTab extends StatelessWidget {
                       const SizedBox(height: 12),
                       ClipRRect(
                         borderRadius: BorderRadius.circular(4),
-                        child: AnimatedProgressBar(value: budgetPct, color: AppColors.ember, trackColor: t.progressTrack, height: 6),
+                        child: AnimatedProgressBar(value: budgetPct, color: context.appColors.sand, trackColor: t.progressTrack, height: 6),
                       ),
                       const SizedBox(height: 16),
                       Row(
@@ -159,12 +157,12 @@ class ProfileYouTab extends StatelessWidget {
                                   decoration: BoxDecoration(
                                     color: t.elevated,
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: AppColors.volt.withValues(alpha: 0.35)),
+                                    border: Border.all(color: context.appColors.primary.withValues(alpha: 0.35)),
                                   ),
                                   alignment: Alignment.center,
                                   child: Text(
                                     '+£$n',
-                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.volt),
+                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: context.appColors.primary),
                                   ),
                                 ),
                               ),
@@ -192,6 +190,46 @@ class ProfileYouTab extends StatelessWidget {
                       _SummaryRow(label: 'TDEE', value: '${user.tdee} kcal'),
                       _SummaryRow(label: 'Weekly budget', value: '£${user.weeklyBudget.toStringAsFixed(0)}'),
                       _SummaryRow(label: 'Nutrition', value: _nutritionLabel(user.nutritionMode)),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              StaggeredEntry(
+                index: 5,
+                child: ProfileGlassCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SectionLabel('Achievements'),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: AchievementService.all.map((a) {
+                          final unlocked = AchievementService.has(user, a.id);
+                          return Container(
+                            width: (MediaQuery.sizeOf(context).width - 72) / 3,
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: unlocked ? context.appColors.primaryTintBg : t.elevated,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: unlocked ? context.appColors.primaryTintBorder : t.borderSubtle),
+                            ),
+                            child: Column(
+                              children: [
+                                Text(unlocked ? a.emoji : '🔒', style: const TextStyle(fontSize: 22)),
+                                const SizedBox(height: 6),
+                                Text(
+                                  a.title,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: unlocked ? t.textPrimary : t.textMuted),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
                     ],
                   ),
                 ),

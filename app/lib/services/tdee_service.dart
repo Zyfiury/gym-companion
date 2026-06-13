@@ -14,7 +14,7 @@ class CaloriePlan {
 }
 
 class TdeeService {
-  /// Light exercise 1–3 days/week — realistic default before activity is set in profile.
+  /// Light exercise 1–3 days/week - realistic default before activity is set in profile.
   static const double defaultActivityMultiplier = 1.375;
 
   /// Mifflin-St Jeor BMR (activity applied separately in [calculateTdee]).
@@ -133,5 +133,22 @@ class TdeeService {
       'carbs': carbs,
       'fat': fat,
     };
+  }
+
+  /// Training vs rest day calorie split from TDEE target.
+  static ({int training, int rest, int trainingCarbs, int restCarbs}) splitDayTargets({
+    required int trainingDayCalories,
+    required Map<String, int> baseMacros,
+    required String goal,
+  }) {
+    final restOffset = goal == 'bulk' ? -100 : -200;
+    final rest = (trainingDayCalories + restOffset).clamp(1200, 10000);
+    final baseCarbs = baseMacros['carbs'] ?? 200;
+    return (
+      training: trainingDayCalories,
+      rest: rest,
+      trainingCarbs: baseCarbs + 30,
+      restCarbs: (baseCarbs - 30).clamp(50, 400),
+    );
   }
 }

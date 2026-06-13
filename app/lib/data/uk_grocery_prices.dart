@@ -1,5 +1,5 @@
 /// Typical UK shelf prices (2025–2026 averages across major supermarkets).
-/// Not live Tesco prices — but grounded in real retail ranges, not AI guesses.
+/// Not live Tesco prices - but grounded in real retail ranges, not AI guesses.
 class UkGroceryPrices {
   static const _gbp = <String, double>{
     'chicken breast': 4.50,
@@ -91,7 +91,7 @@ class UkGroceryPrices {
     for (final e in _storeMultiplier.entries) {
       if (lower.contains(e.key)) return e.value;
     }
-    // Unknown / independent shops — use UK average baseline.
+    // Unknown / independent shops - use UK average baseline.
     return 1.0;
   }
 

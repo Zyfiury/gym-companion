@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'backend_config.dart';
 
-/// Offline queue — syncs to OpenClaw gateway when connectivity returns.
+/// Offline queue - syncs to OpenClaw gateway when connectivity returns.
 class SyncService {
   static const _queueKey = 'gymapp_offline_queue_v1';
   static bool _listening = false;

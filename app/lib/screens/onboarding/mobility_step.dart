@@ -27,7 +27,7 @@ class MobilityStep extends StatelessWidget {
         ObsidianStepHeader(
           category: 'Health',
           title: 'Mobility & health',
-          subtitle: 'Optional — we adapt exercises to keep you safe.',
+          subtitle: 'Optional - we adapt exercises to keep you safe.',
           index: 1,
         )
             .animate()

@@ -1,4 +1,4 @@
-/// Weight log helpers — one entry per calendar day, merged by date.
+/// Weight log helpers - one entry per calendar day, merged by date.
 class WeightHistoryHelper {
   static String dayKey(DateTime date) {
     final d = DateTime(date.year, date.month, date.day);

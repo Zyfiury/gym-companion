@@ -60,14 +60,22 @@ class ObsidianGlass extends StatelessWidget {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
         child: DecoratedBox(
+          // NOTE: BoxDecoration ignores `color` when `gradient` is set, which
+          // made these panels transparent grey. Paint the fill here and apply
+          // the highlight gradient as a foreground layer instead.
           decoration: BoxDecoration(
             color: ObsidianTokens.glassFill,
             borderRadius: BorderRadius.circular(radius),
             border: ObsidianTokens.glassBorderDecoration(),
             boxShadow: ObsidianTokens.glassShadow(),
-            gradient: ObsidianTokens.glassTopHighlight(),
           ),
-          child: Padding(padding: padding, child: child),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(radius),
+              gradient: ObsidianTokens.glassTopHighlight(),
+            ),
+            child: Padding(padding: padding, child: child),
+          ),
         ),
       ),
     );
@@ -130,7 +138,7 @@ class _FilmGrainPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.white.withValues(alpha: ObsidianTokens.grainOpacity);
+    final paint = Paint()..color = ObsidianTokens.textPrimary.withValues(alpha: ObsidianTokens.grainOpacity);
     for (var i = 0; i < 2800; i++) {
       final x = _rng.nextDouble() * size.width;
       final y = _rng.nextDouble() * size.height;

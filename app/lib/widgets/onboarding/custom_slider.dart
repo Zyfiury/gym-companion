@@ -172,7 +172,7 @@ class _GlowThumbShape extends SliderComponentShape {
       center + const Offset(0, 1),
       r,
       Paint()
-        ..color = Colors.black.withValues(alpha: 0.35)
+        ..color = ObsidianTokens.textPrimary.withValues(alpha: 0.35)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
     );
     canvas.drawCircle(center, r, Paint()..color = ObsidianTokens.textPrimary);

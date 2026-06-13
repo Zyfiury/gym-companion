@@ -20,7 +20,7 @@ appId: com.gymcompanion.gym_companion
       id: "home-greeting"
     timeout: 20000
 - tapOn:
-    id: "tab-workout"
+    id: "tab-meals"
 - extendedWaitUntil:
     visible:
       id: "barcode-input"

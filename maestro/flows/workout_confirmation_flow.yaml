@@ -1,0 +1,10 @@
+appId: com.gymcompanion.gym_companion
+---
+- launchApp
+- runFlow: login_flow.yaml
+- tapOn:
+    id: tab-workout
+- assertVisible: "Workout"
+- tapOn:
+    id: workout-today-card
+- assertVisible: "Mark as complete"

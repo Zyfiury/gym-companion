@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/app_state.dart';
 import '../services/health_service.dart';
+import '../core/widgets/app_toast.dart';
 import '../theme/app_theme.dart';
 
 Future<void> showHealthConnectSheet(
@@ -71,7 +72,11 @@ class _HealthConnectBodyState extends State<_HealthConnectBody> {
     if (!mounted) return;
     setState(() => _loading = false);
     if (msg.startsWith('✓')) Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    if (msg.startsWith('✓')) {
+      AppToast.success(context, msg.replaceFirst('✓ ', ''));
+    } else {
+      AppToast.error(context, msg);
+    }
   }
 
   @override
@@ -87,7 +92,7 @@ class _HealthConnectBodyState extends State<_HealthConnectBody> {
         const SizedBox(height: 8),
         Text(
           widget.connected
-              ? (widget.steps > 0 ? '${widget.steps} steps today — keep moving!' : '0 steps today — open Health Connect if steps look wrong.')
+              ? (widget.steps > 0 ? '${widget.steps} steps today - keep moving!' : '0 steps today - open Health Connect if steps look wrong.')
               : android
                   ? 'Sync steps from Health Connect (Samsung Health, Google Fit, and other apps link through it).'
                   : 'Sync your step count automatically from Apple Health.',
@@ -97,7 +102,7 @@ class _HealthConnectBodyState extends State<_HealthConnectBody> {
           const SizedBox(height: 12),
           Text(
             'Health Connect is required on Android. Install it from the Play Store, then tap Connect.',
-            style: TextStyle(color: AppColors.orange, fontSize: 12, height: 1.35),
+            style: TextStyle(color: context.appColors.sand, fontSize: 12, height: 1.35),
           ),
         ],
         const SizedBox(height: 20),
@@ -106,7 +111,7 @@ class _HealthConnectBodyState extends State<_HealthConnectBody> {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(
-                style: OutlinedButton.styleFrom(foregroundColor: AppColors.accent, side: BorderSide(color: t.borderSubtle)),
+                style: OutlinedButton.styleFrom(foregroundColor: context.appColors.primary, side: BorderSide(color: t.borderSubtle)),
                 onPressed: _loading ? null : _install,
                 child: Text(_loading ? 'Opening Play Store…' : 'Install Health Connect'),
               ),
@@ -115,7 +120,7 @@ class _HealthConnectBodyState extends State<_HealthConnectBody> {
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: AppColors.accent),
+              style: FilledButton.styleFrom(backgroundColor: context.appColors.primary),
               onPressed: _loading ? null : _connect,
               child: Text(_loading ? 'Connecting…' : 'Connect now'),
             ),

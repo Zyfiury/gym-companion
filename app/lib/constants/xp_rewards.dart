@@ -11,4 +11,5 @@ class XpRewards {
   static const feedGeneral = 5;
   static const feedLinked = 10;
   static const feedPrShare = 10;
+  static const weeklyGoalCrushed = 100;
 }

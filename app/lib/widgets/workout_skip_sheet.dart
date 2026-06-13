@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
+import '../core/widgets/app_toast.dart';
 import '../theme/app_theme.dart';
 import '../utils/sheet_padding.dart';
 
@@ -41,9 +42,7 @@ Future<void> showWorkoutSkipSheet(BuildContext context) async {
                   final msg = await ctx.read<AppState>().skipTodayWorkout(reason: reason);
                   if (ctx.mounted) {
                     Navigator.pop(ctx);
-                    if (msg != null) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-                    }
+                    if (msg != null) AppToast.success(context, msg);
                   }
                 },
                 child: const Text('Skip today'),

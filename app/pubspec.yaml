@@ -1,7 +1,7 @@
 name: gym_companion
 description: AI-powered gym, nutrition and budget companion.
 publish_to: 'none'
-version: 1.0.1+4
+version: 1.0.3+9
 
 environment:
   sdk: ^3.11.5
@@ -33,6 +33,7 @@ dependencies:
   firebase_core: ^3.8.0
   firebase_auth: ^5.3.4
   cloud_firestore: ^5.6.0
+  firebase_storage: ^12.4.4
   firebase_messaging: ^15.1.5
   firebase_crashlytics: ^4.3.4
   firebase_analytics: ^11.4.4

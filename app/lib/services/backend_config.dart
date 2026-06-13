@@ -53,7 +53,7 @@ class BackendConfig {
     return key != null && key.isNotEmpty;
   }
 
-  /// Places API key — dedicated key or shared Google Cloud API key.
+  /// Places API key - dedicated key or shared Google Cloud API key.
   static String? get googlePlacesApiKey {
     final places = (dotenv.env['GOOGLE_PLACES_API_KEY'] ?? '').trim();
     if (places.isNotEmpty && !places.contains('your-')) return places;

@@ -8,15 +8,16 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../models/user_data.dart';
+import '../models/weekly_goal.dart';
 import '../utils/personal_record_helper.dart';
 import '../utils/weight_history.dart';
 
-/// Firebase Auth + Cloud Firestore — primary backend for production mobile.
+/// Firebase Auth + Cloud Firestore - primary backend for production mobile.
 class FirebaseService {
   static FirebaseAuth get auth => FirebaseAuth.instance;
   static FirebaseFirestore get db => FirebaseFirestore.instance;
 
-  /// Web client ID from `google-services.json` — required for Firebase Google Sign-In id tokens.
+  /// Web client ID from `google-services.json` - required for Firebase Google Sign-In id tokens.
   static const _googleWebClientId =
       '928816456435-bktcdi6j6b9bbc3lpkjck25mck1ddl8m.apps.googleusercontent.com';
 
@@ -26,7 +27,7 @@ class FirebaseService {
 
   static const _firestoreTimeout = Duration(seconds: 10);
 
-  /// Firestore writes must never block auth — API may be disabled or rules pending.
+  /// Firestore writes must never block auth - API may be disabled or rules pending.
   static Future<void> _firestoreOp(String label, Future<void> Function() op) async {
     try {
       await op().timeout(_firestoreTimeout);
@@ -175,8 +176,13 @@ class FirebaseService {
         'protein': log['protein_logged'] ?? 0,
         'carbs': log['carbs_logged'] ?? 0,
         'fat': log['fat_logged'] ?? 0,
+        'fiber': log['fiber_logged'] ?? 0,
+        'sugar': log['sugar_logged'] ?? 0,
+        'sodiumMg': log['sodium_mg_logged'] ?? 0,
       };
       data['foodLog'] = log['food_log'] ?? [];
+      // The daily fields above are confirmed fresh for today.
+      data['dailyLogDate'] = today;
       data['todayActivityLog'] = {
         'step_calories': log['step_calories'],
         'workout_calories': log['workout_calories'],
@@ -222,17 +228,26 @@ class FirebaseService {
     await _firestoreOp('saveUserData', () async {
       await db.collection('users').doc(uid).set(json, SetOptions(merge: true));
       final today = DateTime.now().toIso8601String().substring(0, 10);
-      final dailyPayload = {
+      final dailyPayload = <String, dynamic>{
         'date': today,
-        'calories_logged': data.dailyMacrosLogged.calories,
-        'protein_logged': data.dailyMacrosLogged.protein,
-        'carbs_logged': data.dailyMacrosLogged.carbs,
-        'fat_logged': data.dailyMacrosLogged.fat,
-        'food_log': data.foodLog,
         'water_ml': data.water.round(),
+        'steps': data.steps.round(),
         'updatedAt': FieldValue.serverTimestamp(),
         if (activityFields != null) ...activityFields,
       };
+      // Only write macro totals when UserData is stamped for today (avoids stale rollover writes).
+      if (data.dailyLogDate == today) {
+        dailyPayload.addAll({
+          'calories_logged': data.dailyMacrosLogged.calories,
+          'protein_logged': data.dailyMacrosLogged.protein,
+          'carbs_logged': data.dailyMacrosLogged.carbs,
+          'fat_logged': data.dailyMacrosLogged.fat,
+          'fiber_logged': data.dailyMacrosLogged.fiber,
+          'sugar_logged': data.dailyMacrosLogged.sugar,
+          'sodium_mg_logged': data.dailyMacrosLogged.sodiumMg,
+          'food_log': data.foodLog,
+        });
+      }
       await db.collection('users').doc(uid).collection('daily_logs').doc(today).set(
             dailyPayload,
             SetOptions(merge: true),
@@ -247,6 +262,14 @@ class FirebaseService {
       'recorded_at': FieldValue.serverTimestamp(),
     });
     return ref.id;
+  }
+
+  static Future<void> deleteFoodEntry(String uid, String entryId) async {
+    await db.collection('users').doc(uid).collection('food_entries').doc(entryId).delete();
+  }
+
+  static Future<void> updateFoodEntry(String uid, String entryId, Map<String, dynamic> entry) async {
+    await db.collection('users').doc(uid).collection('food_entries').doc(entryId).set(entry, SetOptions(merge: true));
   }
 
   static Future<String> createWorkoutSession(String uid, Map<String, dynamic> session) async {
@@ -484,4 +507,87 @@ class FirebaseService {
 
   static String encodeUser(UserData u) => u.encode();
   static UserData decodeUser(String s) => UserData.decode(s);
+
+  // ─── WEEKLY GOALS ───────────────────────────────────────────────────────────
+
+  static Future<List<WeeklyGoal>> fetchWeeklyGoals(String uid) async {
+    try {
+      final snap = await db
+          .collection('users')
+          .doc(uid)
+          .collection('weeklyGoals')
+          .where('isActive', isEqualTo: true)
+          .get()
+          .timeout(_firestoreTimeout);
+      return snap.docs.map((d) => WeeklyGoal.fromJson(d.id, d.data())).toList();
+    } catch (e) {
+      debugPrint('fetchWeeklyGoals failed: $e');
+      return [];
+    }
+  }
+
+  static Future<void> saveWeeklyGoal(String uid, WeeklyGoal goal) async {
+    await _firestoreOp('saveWeeklyGoal', () => db.collection('users').doc(uid).collection('weeklyGoals').doc(goal.id).set({
+          ...goal.toJson(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }));
+  }
+
+  // ─── DAILY CHECK-INS ────────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>?> fetchDailyCheckin(String uid, String date) async {
+    try {
+      final doc = await db.collection('users').doc(uid).collection('dailyCheckins').doc(date).get();
+      return doc.data();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> saveDailyCheckin(String uid, String date, Map<String, dynamic> data) async {
+    await _firestoreOp('saveDailyCheckin', () => db.collection('users').doc(uid).collection('dailyCheckins').doc(date).set({
+          ...data,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true)));
+  }
+
+  // ─── EXERCISE HISTORY ───────────────────────────────────────────────────────
+
+  static Future<void> saveExerciseSession(
+    String uid,
+    String exerciseId,
+    Map<String, dynamic> session,
+  ) async {
+    await _firestoreOp(
+      'saveExerciseSession',
+      () => db
+          .collection('users')
+          .doc(uid)
+          .collection('exerciseHistory')
+          .doc(exerciseId)
+          .collection('sessions')
+          .add({
+        ...session,
+        'recorded_at': FieldValue.serverTimestamp(),
+      }),
+    );
+  }
+
+  static Future<Map<String, dynamic>?> getLastExerciseSession(String uid, String exerciseId) async {
+    try {
+      final snap = await db
+          .collection('users')
+          .doc(uid)
+          .collection('exerciseHistory')
+          .doc(exerciseId)
+          .collection('sessions')
+          .orderBy('recorded_at', descending: true)
+          .limit(1)
+          .get();
+      if (snap.docs.isEmpty) return null;
+      return snap.docs.first.data();
+    } catch (_) {
+      return null;
+    }
+  }
 }

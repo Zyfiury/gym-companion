@@ -2,20 +2,36 @@ import 'dart:convert';
 
 import '../services/shopping_list_service.dart';
 import '../services/store_service.dart';
+import 'weekly_goal.dart';
 
 class MacroLog {
   int calories;
   int protein;
   int carbs;
   int fat;
+  // Micronutrients (grams, except sodium in mg).
+  int fiber;
+  int sugar;
+  int sodiumMg;
 
-  MacroLog({this.calories = 0, this.protein = 0, this.carbs = 0, this.fat = 0});
+  MacroLog({
+    this.calories = 0,
+    this.protein = 0,
+    this.carbs = 0,
+    this.fat = 0,
+    this.fiber = 0,
+    this.sugar = 0,
+    this.sodiumMg = 0,
+  });
 
   Map<String, dynamic> toJson() => {
         'calories': calories,
         'protein': protein,
         'carbs': carbs,
         'fat': fat,
+        'fiber': fiber,
+        'sugar': sugar,
+        'sodiumMg': sodiumMg,
       };
 
   factory MacroLog.fromJson(Map<String, dynamic> j) => MacroLog(
@@ -23,6 +39,9 @@ class MacroLog {
         protein: j['protein'] as int? ?? 0,
         carbs: j['carbs'] as int? ?? 0,
         fat: j['fat'] as int? ?? 0,
+        fiber: (j['fiber'] as num?)?.toInt() ?? 0,
+        sugar: (j['sugar'] as num?)?.toInt() ?? 0,
+        sodiumMg: (j['sodiumMg'] as num?)?.toInt() ?? 0,
       );
 }
 
@@ -234,6 +253,7 @@ class UserData {
   List<String> bannedMeals;
   List<Map<String, dynamic>> recentMeals;
   List<Map<String, dynamic>> favouriteMeals;
+  List<Map<String, dynamic>> favouriteDelivery;
   WeeklyPlan weeklyPlan;
   MacroLog dailyMacrosLogged;
   double budgetSpent;
@@ -255,6 +275,17 @@ class UserData {
   MonthlyPlan? monthlyPlan;
   List<String> mealsLoggedToday;
   String mealsLoggedDate;
+  // Which day the daily fields (dailyMacrosLogged, foodLog, water) belong to.
+  String dailyLogDate;
+  /// Archived daily summaries for goal eval and charts (local / offline users).
+  List<Map<String, dynamic>> dailyLogArchive;
+  List<WeeklyGoal> weeklyGoals;
+  int? trainingDayCalories;
+  int? restDayCalories;
+  bool splitCaloriesEnabled;
+  double barWeightKg;
+  Map<String, int> exerciseRestSeconds;
+  Map<String, double> nextSessionTargets;
 
   UserData({
     this.userId = '',
@@ -275,6 +306,7 @@ class UserData {
     this.bannedMeals = const [],
     this.recentMeals = const [],
     this.favouriteMeals = const [],
+    this.favouriteDelivery = const [],
     required this.weeklyPlan,
     MacroLog? dailyMacrosLogged,
     this.budgetSpent = 0,
@@ -296,10 +328,24 @@ class UserData {
     this.monthlyPlan,
     List<String>? mealsLoggedToday,
     String? mealsLoggedDate,
-  })  : onboardingAnswers = onboardingAnswers ?? {},
+    String? dailyLogDate,
+    List<Map<String, dynamic>>? dailyLogArchive,
+    List<WeeklyGoal>? weeklyGoals,
+    this.trainingDayCalories,
+    this.restDayCalories,
+    this.splitCaloriesEnabled = true,
+    this.barWeightKg = 20,
+    Map<String, int>? exerciseRestSeconds,
+    Map<String, double>? nextSessionTargets,
+  })  : exerciseRestSeconds = exerciseRestSeconds ?? {},
+        nextSessionTargets = nextSessionTargets ?? {},
+        onboardingAnswers = onboardingAnswers ?? {},
         customWorkouts = customWorkouts ?? [],
         mealsLoggedToday = mealsLoggedToday ?? [],
         mealsLoggedDate = mealsLoggedDate ?? '',
+        dailyLogDate = dailyLogDate ?? '',
+        dailyLogArchive = dailyLogArchive ?? [],
+        weeklyGoals = weeklyGoals ?? [],
         dailyMacrosLogged = dailyMacrosLogged ?? MacroLog(),
         gamification = gamification ??
             {'xp': 0, 'level': 1, 'streak': 0, 'achievements': <String>[], 'freeMessagesRemaining': 10},
@@ -373,6 +419,7 @@ class UserData {
         'bannedMeals': bannedMeals,
         'recentMeals': recentMeals,
         'favouriteMeals': favouriteMeals,
+        'favouriteDelivery': favouriteDelivery,
         'weeklyPlan': weeklyPlan.toJson(),
         'dailyMacrosLogged': dailyMacrosLogged.toJson(),
         'budgetSpent': budgetSpent,
@@ -393,6 +440,17 @@ class UserData {
         if (monthlyPlan != null) 'monthlyPlan': monthlyPlan!.toJson(),
         'mealsLoggedToday': mealsLoggedToday,
         'mealsLoggedDate': mealsLoggedDate,
+        'dailyLogDate': dailyLogDate,
+        'dailyLogArchive': dailyLogArchive,
+        'weeklyGoals': weeklyGoals
+            .map((g) => {'id': g.id, ...g.toJson()})
+            .toList(),
+        if (trainingDayCalories != null) 'trainingDayCalories': trainingDayCalories,
+        if (restDayCalories != null) 'restDayCalories': restDayCalories,
+        'splitCaloriesEnabled': splitCaloriesEnabled,
+        'barWeightKg': barWeightKg,
+        'exerciseRestSeconds': exerciseRestSeconds,
+        'nextSessionTargets': nextSessionTargets.map((k, v) => MapEntry(k, v)),
       };
 
   factory UserData.fromJson(Map<String, dynamic> j) {
@@ -417,6 +475,10 @@ class UserData {
       recentMeals: (j['recentMeals'] as List?)?.cast<Map<String, dynamic>>() ?? [],
       favouriteMeals:
           (j['favouriteMeals'] as List?)?.cast<Map<String, dynamic>>() ?? [],
+      favouriteDelivery: (j['favouriteDelivery'] as List?)
+              ?.map((e) => Map<String, dynamic>.from(e as Map))
+              .toList() ??
+          [],
       weeklyPlan: WeeklyPlan.fromJson(j['weeklyPlan'] as Map<String, dynamic>),
       dailyMacrosLogged: MacroLog.fromJson(
         j['dailyMacrosLogged'] as Map<String, dynamic>? ?? {},
@@ -447,17 +509,110 @@ class UserData {
           : null,
       mealsLoggedToday: (j['mealsLoggedToday'] as List?)?.cast<String>() ?? [],
       mealsLoggedDate: j['mealsLoggedDate'] as String? ?? '',
+      dailyLogDate: j['dailyLogDate'] as String? ?? '',
+      dailyLogArchive: (j['dailyLogArchive'] as List?)
+              ?.map((e) => Map<String, dynamic>.from(e as Map))
+              .toList() ??
+          [],
+      weeklyGoals: (j['weeklyGoals'] as List?)
+              ?.map((e) {
+                final m = Map<String, dynamic>.from(e as Map);
+                return WeeklyGoal.fromJson(m['id'] as String? ?? '', m);
+              })
+              .toList() ??
+          [],
+      trainingDayCalories: j['trainingDayCalories'] as int?,
+      restDayCalories: j['restDayCalories'] as int?,
+      splitCaloriesEnabled: j['splitCaloriesEnabled'] as bool? ?? true,
+      barWeightKg: (j['barWeightKg'] as num?)?.toDouble() ?? 20,
+      exerciseRestSeconds: (j['exerciseRestSeconds'] as Map?)?.map(
+            (k, v) => MapEntry(k as String, (v as num).round()),
+          ) ??
+          {},
+      nextSessionTargets: (j['nextSessionTargets'] as Map?)?.map(
+            (k, v) => MapEntry(k as String, (v as num).toDouble()),
+          ) ??
+          {},
     );
   }
 
-  int get freeMessagesRemaining => gamification['freeMessagesRemaining'] as int? ?? 10;
+  int get freeMessagesRemaining {
+    resetFreeMessagesIfNewDay();
+    return gamification['freeMessagesRemaining'] as int? ?? 10;
+  }
 
-  void resetMealsLoggedIfNewDay() {
+  /// Daily coach message quota: refill to 10 on the first check of a new day.
+  bool resetFreeMessagesIfNewDay() {
     final today = DateTime.now().toIso8601String().substring(0, 10);
-    if (mealsLoggedDate != today) {
-      mealsLoggedToday = [];
-      mealsLoggedDate = today;
+    if (gamification['freeMessagesDate'] == today) return false;
+    gamification = {
+      ...gamification,
+      'freeMessagesRemaining': 10,
+      'freeMessagesDate': today,
+    };
+    return true;
+  }
+
+  bool resetMealsLoggedIfNewDay() {
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    if (mealsLoggedDate == today) return false;
+    mealsLoggedToday = [];
+    mealsLoggedDate = today;
+    return true;
+  }
+
+  void _archiveCurrentDailyLog({Map<String, dynamic>? activitySnapshot}) {
+    if (dailyLogDate.isEmpty) return;
+    final workoutStatus = activitySnapshot?['workout_status'] as String?;
+    final hasData = dailyMacrosLogged.calories > 0 ||
+        dailyMacrosLogged.protein > 0 ||
+        foodLog.isNotEmpty ||
+        water > 0 ||
+        steps > 0 ||
+        workoutStatus == 'completed' ||
+        workoutStatus == 'modified' ||
+        workoutStatus == 'skipped';
+    if (!hasData) return;
+
+    final entry = <String, dynamic>{
+      'date': dailyLogDate,
+      'calories_logged': dailyMacrosLogged.calories,
+      'protein_logged': dailyMacrosLogged.protein,
+      'carbs_logged': dailyMacrosLogged.carbs,
+      'fat_logged': dailyMacrosLogged.fat,
+      'fiber_logged': dailyMacrosLogged.fiber,
+      'sugar_logged': dailyMacrosLogged.sugar,
+      'sodium_mg_logged': dailyMacrosLogged.sodiumMg,
+      'water_ml': water.round(),
+      'steps': steps.round(),
+      'food_log': foodLog,
+    };
+    if (activitySnapshot != null) {
+      entry.addAll(activitySnapshot);
     }
+    dailyLogArchive.removeWhere((l) => l['date'] == dailyLogDate);
+    dailyLogArchive.add(entry);
+    dailyLogArchive.sort((a, b) => (a['date'] as String).compareTo(b['date'] as String));
+    if (dailyLogArchive.length > 30) {
+      dailyLogArchive = dailyLogArchive.sublist(dailyLogArchive.length - 30);
+    }
+  }
+
+  /// Clears yesterday's calories, food log and water on the first
+  /// touch of a new day, so totals never carry over.
+  bool resetDailyLogIfNewDay({Map<String, dynamic>? activitySnapshot}) {
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    if (dailyLogDate == today) return false;
+    _archiveCurrentDailyLog(activitySnapshot: activitySnapshot);
+    dailyMacrosLogged = MacroLog();
+    foodLog = [];
+    water = 0;
+    steps = 0;
+    dailyLogDate = today;
+    for (final w in customWorkouts) {
+      w.completedToday = [];
+    }
+    return true;
   }
 
   bool isMealLogged(String mealType) {

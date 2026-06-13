@@ -15,6 +15,15 @@ class DailyContext {
   final double water;
   final int streak;
   final List<String> recentPRs;
+  final List<String> activeGoals;
+  final int energyLevel;
+  final double sleepHours;
+  final String workoutAdjusted;
+  final List<String> recentProgressions;
+  final Map<String, double> weeklyVolume;
+  final bool trainingDay;
+  final List<Map<String, dynamic>> foodLoggedToday;
+  final List<Map<String, dynamic>> plannedMeals;
 
   const DailyContext({
     required this.date,
@@ -31,6 +40,15 @@ class DailyContext {
     required this.water,
     required this.streak,
     required this.recentPRs,
+    this.activeGoals = const [],
+    this.energyLevel = 0,
+    this.sleepHours = 0,
+    this.workoutAdjusted = 'none',
+    this.recentProgressions = const [],
+    this.weeklyVolume = const {},
+    this.trainingDay = true,
+    this.foodLoggedToday = const [],
+    this.plannedMeals = const [],
   });
 
   Map<String, dynamic> toJson() => {
@@ -48,6 +66,15 @@ class DailyContext {
         'water': water,
         'streak': streak,
         'recentPRs': recentPRs,
+        'activeGoals': activeGoals,
+        'energyLevel': energyLevel,
+        'sleepHours': sleepHours,
+        'workoutAdjusted': workoutAdjusted,
+        'recentProgressions': recentProgressions,
+        'weeklyVolume': weeklyVolume,
+        'trainingDay': trainingDay,
+        if (foodLoggedToday.isNotEmpty) 'foodLoggedToday': foodLoggedToday,
+        if (plannedMeals.isNotEmpty) 'plannedMeals': plannedMeals,
       };
 
   static Map<String, dynamic>? workoutTodayJson({

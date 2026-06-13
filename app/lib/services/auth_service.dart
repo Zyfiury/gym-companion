@@ -35,7 +35,7 @@ class Account {
       );
 }
 
-/// Pre-seeded test accounts — see TEST_ACCOUNTS.md
+/// Pre-seeded test accounts - see TEST_ACCOUNTS.md
 class TestAccounts {
   static const testEmail = 'test@gym.app';
   static const testPassword = 'test123';

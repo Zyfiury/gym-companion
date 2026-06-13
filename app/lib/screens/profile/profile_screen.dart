@@ -5,6 +5,7 @@ import '../../providers/app_state.dart';
 import '../../services/subscription_service.dart';
 import '../../services/workout_adaptation_service.dart';
 import '../../services/youtube_service.dart';
+import '../../core/widgets/app_toast.dart';
 import '../../theme/app_theme.dart';
 import '../../services/tdee_service.dart';
 import '../../widgets/pro_badge.dart';
@@ -32,6 +33,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late Set<String> allergies, disabilities;
   late bool pregnant, tracksPeriod;
   late String? periodPhase;
+  late bool splitCaloriesEnabled;
+  late double barWeightKg;
+  late int defaultRestSeconds;
   late final TextEditingController _favCtrl;
   late List<String> _initialDisabilities;
   late bool _initialPregnant;
@@ -68,6 +72,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     pregnant = u.pregnant;
     tracksPeriod = u.tracksPeriod;
     periodPhase = u.periodPhase;
+    splitCaloriesEnabled = u.splitCaloriesEnabled;
+    barWeightKg = u.barWeightKg;
+    defaultRestSeconds = u.exerciseRestSeconds['_default'] ?? 90;
     _initialDisabilities = List<String>.from(u.disabilities);
     _initialPregnant = u.pregnant;
     _initialGender = u.genderAtBirth;
@@ -124,6 +131,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       u.pregnant = pregnant;
       u.tracksPeriod = tracksPeriod;
       u.periodPhase = periodPhase;
+      u.splitCaloriesEnabled = splitCaloriesEnabled;
+      u.barWeightKg = barWeightKg;
+      u.exerciseRestSeconds = {...u.exerciseRestSeconds, '_default': defaultRestSeconds};
       if (healthChanged) _rebuildWorkoutPlan(u);
     });
     if (healthChanged) {
@@ -133,7 +143,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _initialGender = genderAtBirth;
     }
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile saved ✓')));
+      AppToast.success(context, 'Profile saved ✓');
     }
   }
 
@@ -172,9 +182,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         await _save();
         if (!mounted) return;
         if (nutritionMode == 'home_delivery' || nutritionMode == 'eat_out') {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Open the Food tab to find options near you')),
-          );
+          AppToast.error(context, 'Open the Food tab to find options near you');
         }
       },
     );
@@ -244,7 +252,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           onAvatarTap: () async {
             final updated = await context.read<AppState>().updateAvatar(context);
             if (updated && context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile photo updated ✓')));
+              AppToast.success(context, 'Profile photo updated ✓');
             }
           },
         );
@@ -253,11 +261,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           allergies: allergies,
           dietType: dietType,
           mealVariety: mealVariety,
+          splitCaloriesEnabled: splitCaloriesEnabled,
+          trainingDayCalories: u.trainingDayCalories ?? u.tdee,
+          restDayCalories: u.restDayCalories ?? (u.tdee - 200),
           favouriteMeals: u.favouriteMeals,
           favCtrl: _favCtrl,
           onAllergiesChanged: (v) => setState(() => allergies = v),
           onDietTypeChanged: (v) => setState(() => dietType = v),
           onMealVarietyChanged: (v) => setState(() => mealVariety = v),
+          onSplitCaloriesChanged: (v) => setState(() => splitCaloriesEnabled = v),
           onAddFavourite: () {
             if (_favCtrl.text.isEmpty) return;
             context.read<AppState>().patchUser((user) {
@@ -275,6 +287,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           pregnant: pregnant,
           tracksPeriod: tracksPeriod,
           periodPhase: periodPhase,
+          barWeightKg: barWeightKg,
+          defaultRestSeconds: defaultRestSeconds,
           onGenderChanged: (v) => setState(() {
             genderAtBirth = v;
           }),
@@ -282,6 +296,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           onPregnantChanged: (v) => setState(() => pregnant = v),
           onTracksPeriodChanged: (v) => setState(() => tracksPeriod = v),
           onPeriodPhaseChanged: (v) => setState(() => periodPhase = v),
+          onBarWeightChanged: (v) => setState(() => barWeightKg = v),
+          onRestSecondsChanged: (v) => setState(() => defaultRestSeconds = v),
           onSave: _save,
         );
       default:

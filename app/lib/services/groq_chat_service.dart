@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'backend_config.dart';
+import 'coach_personality_service.dart';
 
 class AiAction {
   final String type;
@@ -32,7 +33,7 @@ class GroqChatService {
 
     final messages = <Map<String, String>>[
       {'role': 'system', 'content': _systemPrompt(userProfile)},
-      ...history.take(20),
+      ...history.take(24),
       {'role': 'user', 'content': userMessage},
     ];
 
@@ -47,11 +48,11 @@ class GroqChatService {
             body: jsonEncode({
               'model': _model,
               'messages': messages,
-              'max_tokens': 700,
-              'temperature': 0.75,
+              'max_tokens': 1000,
+              'temperature': 0.55,
             }),
           )
-          .timeout(const Duration(seconds: 30));
+          .timeout(const Duration(seconds: 45));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -70,13 +71,36 @@ class GroqChatService {
     }
   }
 
+  static bool isErrorOrEmpty(String text) {
+    if (text.trim().isEmpty) return true;
+    return text.startsWith('❌') ||
+        text.startsWith('⏳') ||
+        text.startsWith('⚠️') ||
+        text.startsWith('AI error') ||
+        text.startsWith('Connection error');
+  }
+
   static String _systemPrompt(Map<String, dynamic> p) {
     final dailyContext = p['daily_context'];
-    final dailyJson = dailyContext != null ? dailyContext.toString() : '{}';
-    return '''
-You are an expert AI fitness and nutrition coach in Gym Companion. Be warm, concise, and personalised.
+    final dailyJson = dailyContext != null
+        ? const JsonEncoder.withIndent('  ').convert(dailyContext)
+        : '{}';
+    final coachBrief = p['coach_brief'] as String? ?? '';
 
-USER: ${p['name']} | Goal: ${p['goal']} | ${p['weight_kg']}kg | ${p['height_cm']}cm | Age ${p['age']} | Gender: ${p['gender_at_birth']}
+    return '''
+${CoachPersonalityService.systemPromptPersona(p)}
+
+COACHING RULES (follow every reply):
+1. Ground answers in COACH_BRIEF numbers — never guess calories, protein, or workout status.
+2. Be specific: name foods, exercises, and gaps ("you're 45g protein short" not "eat more protein").
+3. One clear recommendation when helpful, then ask one focused follow-up — not a generic menu of options.
+4. Tie advice to their goal (${p['goal']}), allergies, disabilities, and budget when relevant.
+5. If they want an app action (log food, swap meal, change goal), use ACTION lines below.
+6. Never invent restaurants, meals they ate, or workouts they completed — only what's in COACH_BRIEF.
+7. 2–4 short paragraphs max. Mobile-friendly. No bullet spam unless listing exercises or meals.
+
+USER PROFILE
+Name: ${p['name']} | Goal: ${p['goal']} | ${p['weight_kg']}kg | ${p['height_cm']}cm | Age ${p['age']} | Gender: ${p['gender_at_birth']}
 TDEE target: ${p['tdee']} kcal
 Allergies (NEVER suggest): ${(p['allergies'] as List?)?.join(', ') ?? 'none'}
 Disabilities: ${(p['disabilities'] as List?)?.join(', ') ?? 'none'} | Pregnant: ${p['pregnant']}
@@ -84,31 +108,34 @@ Medications: ${(p['medications'] as List?)?.join(', ') ?? 'none'}
 Period tracking: ${p['tracks_period']} | Phase: ${p['period_phase'] ?? 'n/a'}
 Diet: ${p['diet_type']} | Budget: £${p['weekly_budget']}/week
 Banned meals: ${(p['banned_meals'] as List?)?.join(', ') ?? 'none'}
+Favourites: ${(p['favourite_meals'] as List?)?.join(', ') ?? 'none'}
 XP: ${p['xp']} Level: ${p['level']}
-
 Context period: ${p['context_period']} — ${p['context_note'] ?? ''}
 
-DAILY_CONTEXT (system only — reference naturally, NEVER paste raw JSON to the user):
+COACH_BRIEF (authoritative live snapshot — reference naturally, never paste as a list to the user):
+$coachBrief
+
+DAILY_CONTEXT JSON (system only — for precise numbers if needed):
 $dailyJson
 
-Use daily_context for accurate answers about calories remaining, workout completion, steps, and macros today.
-
-When logging food append on its own line: ACTION:LOG_FOOD:[name]:[calories]:[protein]:[carbs]:[fat]
-Current weight ONLY (e.g. "I weigh 110kg", "set my weight to 72kg"): ACTION:UPDATE_WEIGHT:[kg] or ACTION:LOG_WEIGHT:[kg]
-NEVER use UPDATE_WEIGHT for weight LOSS goals ("lose 10kg", "drop 5kg") — those are targets to lose, not the user's body weight. For loss goals use ACTION:UPDATE_GOAL:cut and discuss feasibility; only UPDATE_WEIGHT if they state their current weight.
+ACTIONS (append on own line when executing — stripped from user-visible text):
+Log food: ACTION:LOG_FOOD:[name]:[calories]:[protein]:[carbs]:[fat]
+Current body weight only: ACTION:UPDATE_WEIGHT:[kg] or ACTION:LOG_WEIGHT:[kg]
+NEVER UPDATE_WEIGHT for "lose 10kg" goals — use ACTION:UPDATE_GOAL:cut and discuss feasibility.
 Swap meal: ACTION:SWAP_MEAL:[Breakfast|Lunch|Dinner]:[new_meal_name]
 Log PR: ACTION:LOG_PR:[exercise]:[value]:[unit]
-Goal change: ACTION:UPDATE_GOAL:[cut|bulk|maintain]
-Add allergy: ACTION:ADD_ALLERGY:[allergen]
-Workout change/adapt: ACTION:UPDATE_WORKOUT
-Add disability: ACTION:ADD_DISABILITY:[knee_injury|back_pain|shoulder_injury|wheelchair|mobility_limited]
+Goal: ACTION:UPDATE_GOAL:[cut|bulk|maintain]
+Allergy: ACTION:ADD_ALLERGY:[allergen]
+Workout adapt: ACTION:UPDATE_WORKOUT
+Disability: ACTION:ADD_DISABILITY:[knee_injury|back_pain|shoulder_injury|wheelchair|mobility_limited]
 Pregnancy: ACTION:SET_PREGNANT:[true|false]
-Period phase: ACTION:SET_PERIOD:[menstrual|follicular|ovulation|luteal|none]
+Period: ACTION:SET_PERIOD:[menstrual|follicular|ovulation|luteal|none]
+Weekly goal: ACTION:SET_GOAL:[protein|calories|workouts|water|steps|streak|weight]:[targetValue]:[targetDays]
 
-Use metric units. Never suggest allergen foods. Keep replies short for mobile.
+Use metric units. Never suggest allergen foods.
 
-DELIVERY: If the user asks about Uber Eats, Deliveroo, takeaway, or restaurants near them, say:
-"I'll search real restaurants near you — one moment!" The app handles location search automatically; do NOT invent restaurant names.
+DELIVERY: If user asks about Uber Eats, Deliveroo, takeaway, or nearby restaurants, say:
+"I'll search real restaurants near you — one moment!" Do NOT invent restaurant names.
 ''';
   }
 
@@ -171,6 +198,15 @@ DELIVERY: If the user asks about Uber Eats, Deliveroo, takeaway, or restaurants 
     if (period != null) {
       final phase = period.group(1)!.trim();
       actions.add(AiAction(type: 'SET_PERIOD', data: {'phase': phase == 'none' ? null : phase}));
+    }
+
+    final setGoal = RegExp(r'ACTION:SET_GOAL:([^:\n]+):([\d.]+):(\d+)').firstMatch(raw);
+    if (setGoal != null) {
+      actions.add(AiAction(type: 'SET_GOAL', data: {
+        'type': setGoal.group(1)!.trim(),
+        'targetValue': double.parse(setGoal.group(2)!),
+        'targetDays': int.parse(setGoal.group(3)!),
+      }));
     }
 
     return actions;

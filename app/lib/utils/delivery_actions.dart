@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../providers/app_state.dart';
+import '../core/widgets/app_toast.dart';
 import '../theme/app_theme.dart';
 import 'sheet_padding.dart';
 
@@ -10,9 +11,7 @@ Future<bool> launchExternalUrl(BuildContext context, String url) async {
   final uri = Uri.tryParse(url);
   if (uri == null) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid link')),
-      );
+      AppToast.error(context, 'Invalid link');
     }
     return false;
   }
@@ -20,16 +19,12 @@ Future<bool> launchExternalUrl(BuildContext context, String url) async {
   try {
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open link — check your browser or delivery app')),
-      );
+      AppToast.error(context, 'Could not open link - check your browser or delivery app');
     }
     return launched;
   } catch (_) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open link')),
-      );
+      AppToast.error(context, 'Could not open link');
     }
     return false;
   }
@@ -52,9 +47,15 @@ Future<void> logDeliveryOption(BuildContext context, Map<String, dynamic> option
   final protein = _asInt(option['protein']);
   final carbs = _asInt(option['carbs']);
   final fat = _asInt(option['fat']);
-  final estimated = option['macrosEstimated'] == true;
   final isEatOut = option['isEatOut'] == true;
-  final name = '$restaurant — $dish';
+  var fiber = _asInt(option['fiber']);
+  var sugar = _asInt(option['sugar']);
+  var sodiumMg = _asInt(option['sodiumMg'] ?? option['sodium_mg']);
+  if (fiber == 0 && carbs > 0) fiber = (carbs * 0.12).round();
+  if (sugar == 0 && carbs > 0) sugar = (carbs * 0.25).round();
+  if (sodiumMg == 0) sodiumMg = isEatOut ? 800 : 600;
+  final estimated = option['macrosEstimated'] == true;
+  final name = '$restaurant - $dish';
 
   final t = context.appTheme;
   final confirmed = await showModalBottomSheet<bool>(
@@ -79,7 +80,7 @@ Future<void> logDeliveryOption(BuildContext context, Map<String, dynamic> option
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: AppColors.accent),
+              style: FilledButton.styleFrom(backgroundColor: context.appColors.primary),
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('Log food'),
             ),
@@ -92,17 +93,21 @@ Future<void> logDeliveryOption(BuildContext context, Map<String, dynamic> option
 
   if (confirmed != true || !context.mounted) return;
 
-  final chip = await context.read<AppState>().logFood(
+  final state = context.read<AppState>();
+  final chip = await state.logFood(
         name: name,
         calories: calories,
         protein: protein,
         carbs: carbs,
         fat: fat,
+        fiber: fiber,
+        sugar: sugar,
+        sodiumMg: sodiumMg,
         source: isEatOut ? 'eat_out' : 'delivery',
       );
 
   if (chip != null && context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(chip)));
+    AppToast.success(context, chip, actionLabel: 'Undo', onAction: () => state.undoLastFoodLog());
   }
 }
 

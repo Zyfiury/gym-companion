@@ -1,6 +1,6 @@
 appId: com.gymcompanion.gym_companion
 ---
-# Release smoke — home + coach after login
+# Release smoke — login, core tabs, coach, food logging entry points.
 - launchApp:
     clearState: true
 - extendedWaitUntil:
@@ -22,5 +22,31 @@ appId: com.gymcompanion.gym_companion
 - assertVisible:
     id: "home-greeting"
 - tapOn:
+    id: "tab-workout"
+- extendedWaitUntil:
+    visible:
+      id: "workout-today-card"
+    timeout: 8000
+- tapOn:
+    id: "tab-meals"
+- extendedWaitUntil:
+    visible: "Food"
+    timeout: 8000
+- tapOn:
+    id: "tab-progress"
+- extendedWaitUntil:
+    visible: "Progress"
+    timeout: 8000
+- tapOn:
+    id: "tab-feed"
+- extendedWaitUntil:
+    visible:
+      id: "feed-create-btn"
+    timeout: 8000
+- tapOn:
     id: "tab-chat"
 - assertVisible: "AI Coach"
+- tapOn:
+    id: "tab-home"
+- assertVisible:
+    id: "home-greeting"

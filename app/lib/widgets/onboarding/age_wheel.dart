@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import 'obsidian_shell.dart';
 
-/// Simple age picker — large value + scroll wheel.
+/// Simple age picker - large value + scroll wheel.
 class SimpleAgePicker extends StatelessWidget {
   final int age;
   final ValueChanged<int> onChanged;

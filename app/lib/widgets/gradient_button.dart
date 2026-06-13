@@ -10,14 +10,15 @@ class GradientButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.appColors;
     final child = ElevatedButton(
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.volt,
-        foregroundColor: AppColors.slate900,
+        backgroundColor: c.primary,
+        foregroundColor: c.onPrimary,
         minimumSize: const Size(0, 48),
         elevation: 0,
-        shadowColor: AppColors.volt.withValues(alpha: 0.35),
+        shadowColor: c.primary.withValues(alpha: 0.35),
         shape: const StadiumBorder(),
         textStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
       ),

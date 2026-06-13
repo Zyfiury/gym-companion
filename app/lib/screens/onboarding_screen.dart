@@ -5,6 +5,7 @@ import '../services/allergy_guard.dart';
 import '../services/analytics_service.dart';
 import '../services/health_safety_service.dart';
 import '../services/tdee_service.dart';
+import '../core/widgets/app_toast.dart';
 import '../theme/app_theme.dart';
 import '../widgets/onboarding/nav_bar.dart';
 import '../widgets/onboarding/obsidian_shell.dart';
@@ -128,14 +129,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   void _tryNext() {
     if (step == 4 && goal.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Please select a goal', style: ObsidianTypography.body(color: ObsidianTokens.textPrimary)),
-          backgroundColor: ObsidianTokens.surfaceMuted,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ObsidianTokens.radiusSm)),
-        ),
-      );
+      AppToast.error(context, 'Please select a goal');
       return;
     }
     _next();

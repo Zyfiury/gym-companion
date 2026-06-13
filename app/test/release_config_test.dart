@@ -9,7 +9,7 @@ void main() {
 
   test('production ready check mirrors release mode', () {
     if (kReleaseMode) {
-      // In release test runs this may be false without real .env — structure is valid.
+      // In release test runs this may be false without real .env - structure is valid.
       expect(ReleaseConfig.isProductionReady, isA<bool>());
     } else {
       expect(ReleaseConfig.isProductionReady, isTrue);

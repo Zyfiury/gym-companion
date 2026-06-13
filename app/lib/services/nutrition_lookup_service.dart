@@ -10,6 +10,9 @@ class NutritionMatch {
   final int protein;
   final int carbs;
   final int fat;
+  final int fiber;
+  final int sugar;
+  final int sodiumMg;
   final String? priceGbp;
   final NutritionSource source;
   final String? brand;
@@ -21,6 +24,9 @@ class NutritionMatch {
     required this.carbs,
     required this.fat,
     required this.source,
+    this.fiber = 0,
+    this.sugar = 0,
+    this.sodiumMg = 0,
     this.priceGbp,
     this.brand,
   });
@@ -68,6 +74,9 @@ class NutritionLookupService {
       protein: ((best['protein'] as num? ?? 0) * factor).round(),
       carbs: ((best['carbs'] as num? ?? 0) * factor).round(),
       fat: ((best['fat'] as num? ?? 0) * factor).round(),
+      fiber: ((best['fiber'] as num? ?? 0) * factor).round(),
+      sugar: ((best['sugar'] as num? ?? 0) * factor).round(),
+      sodiumMg: ((best['sodiumMg'] as num? ?? 0) * factor).round(),
       source: NutritionSource.openFoodFacts,
       brand: best['brand'] as String?,
     );
@@ -77,8 +86,8 @@ class NutritionLookupService {
   static NutritionMatch genericSafeMeal({String goal = 'maintain', UserAllergies? prefs}) {
     final veg = prefs?.dietType == 'vegetarian' || prefs?.dietType == 'vegan';
     final name = veg
-        ? 'Vegetable bowl or salad — confirm allergens with staff'
-        : 'Grilled chicken or salad — confirm allergens with staff';
+        ? 'Vegetable bowl or salad - confirm allergens with staff'
+        : 'Grilled chicken or salad - confirm allergens with staff';
     final calories = switch (goal) {
       'cut' => 420,
       'bulk' => 780,

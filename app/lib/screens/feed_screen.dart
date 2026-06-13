@@ -6,11 +6,11 @@ import '../services/subscription_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/pro_gate.dart';
 import '../utils/sheet_padding.dart';
-import '../widgets/empty_state_card.dart';
+import '../core/widgets/app_empty_state.dart';
+import '../core/widgets/skeletons.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/feed_compose_sheet.dart';
 import '../widgets/premium_ui.dart';
-import '../widgets/shimmer_skeleton.dart';
 import '../widgets/staggered_entry.dart';
 
 String _relativeTime(String iso) {
@@ -34,12 +34,12 @@ IconData _postIcon(String? type) {
 }
 
 const _xpRules = [
-  'Post to the community feed — +10 XP',
-  'Log food — +5 XP',
-  'Log weight — +5 XP',
-  'Log a personal record — +15 XP',
-  'Complete an exercise — +5 XP',
-  'Finish a full workout — +15 XP',
+  'Post to the community feed - +10 XP',
+  'Log food - +5 XP',
+  'Log weight - +5 XP',
+  'Log a personal record - +15 XP',
+  'Complete an exercise - +5 XP',
+  'Finish a full workout - +15 XP',
 ];
 
 class FeedScreen extends StatefulWidget {
@@ -64,9 +64,18 @@ class _FeedScreenState extends State<FeedScreen> {
     });
   }
 
+  Future<void> _refresh() async {
+    final state = context.read<AppState>();
+    await Future.wait([
+      state.refreshFeed(),
+      state.refreshLeaderboard(),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.appTheme;
+    final c = context.appColors;
     final state = context.watch<AppState>();
     final uid = state.userId!;
     var posts = List<Map<String, dynamic>>.from(state.feedPosts);
@@ -75,11 +84,13 @@ class _FeedScreenState extends State<FeedScreen> {
 
     final leaderboard = state.leaderboard.take(10).toList();
 
-    return Stack(
-      children: [
-        AmbientBackground(
+    return AmbientBackground(
+          child: RefreshIndicator(
+          onRefresh: _refresh,
+          color: c.primary,
           child: ListView(
-            padding: EdgeInsets.fromLTRB(20, 4, 20, scrollBottomInset(context, extra: 96)),
+            padding: tabListPadding(context),
+            physics: const AlwaysScrollableScrollPhysics(),
             children: [
               StaggeredEntry(
                 index: 0,
@@ -98,6 +109,16 @@ class _FeedScreenState extends State<FeedScreen> {
                               child: Text('Community', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: t.textSecondary)),
                             ),
                             const Spacer(),
+                            Semantics(
+                              identifier: 'feed-create-btn',
+                              button: true,
+                              child: IconButton(
+                                onPressed: () => showFeedComposeSheet(context),
+                                icon: Icon(Icons.edit_outlined, color: c.primary, size: 22),
+                                tooltip: 'Create post',
+                              ),
+                            ),
+                            const SizedBox(width: 4),
                             SegmentedButton<String>(
                               segments: const [
                                 ButtonSegment(value: 'all', label: Text('Public', style: TextStyle(fontSize: 11))),
@@ -110,23 +131,17 @@ class _FeedScreenState extends State<FeedScreen> {
                         ),
                         const SizedBox(height: 14),
                         if (_initialLoad)
-                          const FeedPostSkeleton()
+                          const Column(children: [SkeletonFeedPost(), SkeletonFeedPost(), SkeletonFeedPost()])
                         else if (posts.isEmpty)
-                          filter == 'mine'
-                              ? EmptyStateCard(
-                                  icon: Icons.edit_outlined,
-                                  headline: 'Share your first post',
-                                  subtext: 'Post a PR, meal, or motivation tip to earn XP',
-                                  buttonLabel: 'Create post',
-                                  onAction: () => showFeedComposeSheet(context),
-                                )
-                              : EmptyStateCard(
-                                  icon: Icons.forum_outlined,
-                                  headline: 'Be the first to post',
-                                  subtext: 'Share a PR, meal, or motivation tip',
-                                  buttonLabel: 'Create post',
-                                  onAction: () => showFeedComposeSheet(context),
-                                )
+                          AppEmptyState(
+                            icon: Icons.forum_outlined,
+                            heading: 'Nothing here yet',
+                            body: filter == 'mine'
+                                ? 'Share a PR, meal, or motivation tip to earn XP'
+                                : 'Be the first to post today',
+                            ctaLabel: 'Share something',
+                            onCta: () => showFeedComposeSheet(context),
+                          )
                         else
                           ...posts.asMap().entries.map((entry) {
                             final i = entry.key;
@@ -165,7 +180,7 @@ class _FeedScreenState extends State<FeedScreen> {
                                           ],
                                         ),
                                       ),
-                                      Icon(_postIcon(postType), size: 16, color: AppColors.accent),
+                                      Icon(_postIcon(postType), size: 16, color: context.appColors.primary),
                                     ],
                                   ),
                                   const SizedBox(height: 8),
@@ -253,7 +268,7 @@ class _FeedScreenState extends State<FeedScreen> {
                                     child: Row(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text('• ', style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700)),
+                                        Text('• ', style: TextStyle(color: context.appColors.primary, fontWeight: FontWeight.w700)),
                                         Expanded(child: Text(rule, style: TextStyle(fontSize: 12, color: t.textSecondary))),
                                       ],
                                     ),
@@ -267,22 +282,7 @@ class _FeedScreenState extends State<FeedScreen> {
               ),
             ],
           ),
-        ),
-        Positioned(
-          right: 20,
-          bottom: scrollBottomInset(context, extra: 12),
-          child: Semantics(
-            identifier: 'feed-create-btn',
-            button: true,
-            child: FloatingActionButton(
-              onPressed: () => showFeedComposeSheet(context),
-              backgroundColor: AppColors.accent,
-              elevation: 2,
-              child: const Icon(Icons.add),
-            ),
           ),
-        ),
-      ],
     );
   }
 }
@@ -307,6 +307,7 @@ class _LeaderRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.appTheme;
+    final c = context.appColors;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(10),
@@ -314,16 +315,16 @@ class _LeaderRow extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 6),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: highlight ? AppColors.voltTintBg : t.elevated,
+          color: highlight ? c.primaryTintBg : t.elevated,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: highlight ? AppColors.voltTintBorder : t.borderSubtle),
+          border: Border.all(color: highlight ? c.primaryTintBorder : t.borderSubtle),
         ),
         child: Row(
           children: [
             Text(
               '#$rank',
               style: TextStyle(
-                color: rank == 1 ? AppColors.volt : t.textMuted,
+                color: rank == 1 ? c.primary : t.textMuted,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -335,18 +336,18 @@ class _LeaderRow extends StatelessWidget {
               ),
             ),
             if (locked)
-              const Icon(Icons.lock_outline, size: 14, color: AppColors.ember)
+              Icon(Icons.lock_outline, size: 14, color: c.sand)
             else
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.voltTintBg,
+                  color: c.primaryTintBg,
                   borderRadius: BorderRadius.circular(100),
-                  border: Border.all(color: AppColors.voltTintBorder),
+                  border: Border.all(color: c.primaryTintBorder),
                 ),
                 child: Text(
                   '$xp XP',
-                  style: const TextStyle(color: AppColors.voltDark, fontSize: 12, fontWeight: FontWeight.w500),
+                  style: TextStyle(color: c.primaryDim, fontSize: 12, fontWeight: FontWeight.w500),
                 ),
               ),
           ],

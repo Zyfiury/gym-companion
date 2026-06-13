@@ -12,7 +12,7 @@ class AppConfig {
   /// Social login requires Firebase.
   static bool get showSocialLogin => true;
 
-  /// GitHub Pages — update owner/repo if your fork differs (see PLAY_STORE_RELEASE.md).
+  /// GitHub Pages - update owner/repo if your fork differs (see PLAY_STORE_RELEASE.md).
   static const privacyPolicyUrl = 'https://zyfiury.github.io/gym-companion/legal/privacy.html';
   static const termsOfServiceUrl = 'https://zyfiury.github.io/gym-companion/legal/terms.html';
   static const supportEmail = 'support@gymcompanion.app';

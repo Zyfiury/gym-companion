@@ -189,7 +189,7 @@ class WorkoutAdaptationService {
   static String formatReply(AdaptedWorkoutPlan plan) {
     final summary = plan.workouts
         .where((w) => w.focus != 'Rest')
-        .map((w) => '${w.day} — ${w.focus}')
+        .map((w) => '${w.day} - ${w.focus}')
         .join('\n');
     final adapt = plan.adaptations.take(3).map((a) => '• $a').join('\n');
     return '✅ Updated your workout plan. Check the Workout tab.\n$summary\n\nAdaptations:\n$adapt';

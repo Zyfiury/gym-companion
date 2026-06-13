@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
@@ -10,12 +11,17 @@ import '../providers/app_state.dart';
 import '../services/backend_config.dart';
 import '../services/subscription_service.dart';
 import '../services/vision_calorie_service.dart';
+import '../core/widgets/app_toast.dart';
+import '../core/widgets/skeletons.dart';
 import '../theme/app_theme.dart';
 import '../widgets/action_confirmation_chip.dart';
 import '../utils/sheet_padding.dart';
 import '../widgets/premium_ui.dart';
 import '../widgets/staggered_entry.dart';
 import 'paywall_screen.dart';
+import '../widgets/page_transitions.dart';
+import '../services/coach_personality_service.dart';
+import '../features/coach/coach_morning_checkin.dart';
 
 class ChatScreen extends StatefulWidget {
   final bool embedded;
@@ -35,21 +41,21 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   String _voiceText = '';
   int _lastMsgCount = 0;
   bool _lastTyping = false;
-
-  static const _suggestions = [
-    (icon: Icons.fitness_center, text: "Give me today's workout"),
-    (icon: Icons.delivery_dining, text: 'Suggest delivery near me'),
-    (icon: Icons.pie_chart_outline, text: 'How are my macros looking?'),
-    (icon: Icons.celebration_outlined, text: 'I just finished my workout!'),
-    (icon: Icons.restaurant, text: 'Log 200g chicken breast'),
-    (icon: Icons.swap_horiz, text: 'Swap my lunch'),
-  ];
+  bool _historyReady = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    Future.delayed(const Duration(milliseconds: 350), () {
+      if (mounted) setState(() => _historyReady = true);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<AppState>().ensureCoachDailyOpener();
+    });
   }
+
+  bool _showCoachLanding(AppState state) => !state.chatTyping && !state.hasUserMessageToday();
 
   @override
   void dispose() {
@@ -119,7 +125,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final t = context.appTheme;
     final state = context.watch<AppState>();
-    final showWelcome = state.chatMessages.isEmpty && !state.chatTyping;
+    final showWelcome = state.chatMessages.isEmpty && _showCoachLanding(state);
+    final showLanding = _showCoachLanding(state);
+    final suggestions = CoachPersonalityService.dynamicSuggestions(state);
+    final opener = CoachPersonalityService.dailyOpener(state);
     final level = state.user?.gamification['level'] ?? 1;
     if (state.chatMessages.length != _lastMsgCount || state.chatTyping != _lastTyping) {
       _lastMsgCount = state.chatMessages.length;
@@ -139,15 +148,41 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             const SizedBox(height: 16),
           ],
           Expanded(
-            child: showWelcome
+            child: !_historyReady
+                ? Padding(
+                    padding: EdgeInsets.fromLTRB(widget.embedded ? 0 : 20, 12, widget.embedded ? 0 : 20, 8),
+                    child: const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SkeletonText(width: 200, height: 14),
+                        SizedBox(height: 10),
+                        SkeletonText(width: double.infinity, height: 12),
+                        SizedBox(height: 10),
+                        SkeletonText(width: 260, height: 12),
+                        SizedBox(height: 10),
+                        SkeletonText(width: 180, height: 12),
+                        SizedBox(height: 10),
+                        SkeletonText(width: 220, height: 12),
+                      ],
+                    ),
+                  )
+                : showWelcome
                 ? SingleChildScrollView(
                     padding: EdgeInsets.fromLTRB(widget.embedded ? 0 : 20, 4, widget.embedded ? 0 : 20, 8),
-                    child: StaggeredEntry(
-                      index: 1,
-                      child: _WelcomeAndSuggestionsCard(
-                        suggestions: _suggestions,
-                        onTap: (t) => _send(state, t),
-                      ),
+                    child: Column(
+                      children: [
+                        StaggeredEntry(
+                          index: 1,
+                          child: _WelcomeAndSuggestionsCard(
+                            opener: opener,
+                            suggestions: suggestions,
+                            onTap: (t) => _send(state, t),
+                            showVoiceChip: true,
+                            onVoiceChip: _startListening,
+                          ),
+                        ),
+                        CoachMorningCheckin(onSorenessMessage: (msg) => _send(state, msg)),
+                      ],
                     ),
                   )
                 : ListView.builder(
@@ -171,6 +206,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 ],
               ),
             ),
+          if (showLanding && !showWelcome)
+            CoachMorningCheckin(onSorenessMessage: (msg) => _send(state, msg)),
+          // Keep quick suggestions one tap away even mid-conversation.
+          if (!showWelcome && !state.chatTyping)
+            _SuggestionChips(suggestions: suggestions, onTap: (t) => _send(state, t)),
           _CoachContextPicker(period: state.coachContextPeriod, onChanged: state.setCoachContextPeriod),
           _InputDock(
             embedded: widget.embedded,
@@ -218,6 +258,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     return const SizedBox.shrink();
   }
 
+  static String _relativeTime(DateTime ts) {
+    final diff = DateTime.now().difference(ts);
+    if (diff.inMinutes < 1) return 'now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays == 1) return 'yesterday';
+    return '${ts.day}/${ts.month}';
+  }
+
   Widget _messageBubble(BuildContext context, AppState state, ChatMessage m, int i, bool isUser, bool isLast) {
     final isLastAssistant = !isUser && isLast && i > 0;
     final isLastUser = isUser && isLast;
@@ -238,12 +287,18 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               child: Semantics(
                 identifier: isLastAssistant ? 'chat-last-reply' : isLastUser ? 'chat-last-user' : null,
                 label: m.content,
+                child: GestureDetector(
+                onLongPress: () {
+                  Clipboard.setData(ClipboardData(text: m.content));
+                  HapticFeedback.mediumImpact();
+                  AppToast.success(context, 'Copied to clipboard');
+                },
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
                   decoration: BoxDecoration(
-                    color: isUser ? AppColors.userBubbleBg : context.appTheme.coachBubble,
+                    color: isUser ? context.appColors.primaryGlow : context.appTheme.coachBubble,
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(20),
                       topRight: const Radius.circular(20),
@@ -251,7 +306,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                       bottomRight: Radius.circular(isUser ? 6 : 20),
                     ),
                     border: Border.all(
-                      color: isUser ? AppColors.voltTintBorder : AppColors.slate600,
+                      color: isUser ? context.appColors.primaryTintBorder : context.appColors.surface3,
                     ),
                   ),
                   child: Column(
@@ -261,8 +316,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                         Padding(
                           padding: const EdgeInsets.only(bottom: 4),
                           child: Text(
-                            'COACH',
-                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, letterSpacing: 0.8, color: AppColors.volt),
+                            CoachPersonalityService.coachName.toUpperCase(),
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, letterSpacing: 0.8, color: context.appColors.primary),
                           ),
                         ),
                       Text(m.content, style: TextStyle(color: context.appTheme.textPrimary, fontSize: 14, height: 1.6)),
@@ -271,8 +326,14 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                         ...m.deliveryOptions!.take(3).map(_deliveryCard),
                       ],
                       if (m.actionChip != null) ActionConfirmationChip(text: m.actionChip!),
+                      const SizedBox(height: 4),
+                      Text(
+                        _relativeTime(m.ts),
+                        style: TextStyle(fontSize: 9.5, color: context.appTheme.textMuted),
+                      ),
                     ],
                   ),
+                ),
                 ),
               ),
             ),
@@ -292,12 +353,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.camera_alt_outlined, color: AppColors.accent),
+              leading: Icon(Icons.camera_alt_outlined, color: context.appColors.primary),
               title: const Text('Take photo'),
               onTap: () => Navigator.pop(ctx, ImageSource.camera),
             ),
             ListTile(
-              leading: const Icon(Icons.photo_library_outlined, color: AppColors.accent),
+              leading: Icon(Icons.photo_library_outlined, color: context.appColors.primary),
               title: const Text('Choose from gallery'),
               onTap: () => Navigator.pop(ctx, ImageSource.gallery),
             ),
@@ -308,11 +369,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     if (source == null || !mounted) return;
     if (!BackendConfig.hasGoogleVision) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Add GOOGLE_VISION_API_KEY to .env and enable Cloud Vision API to scan meals.'),
-          ),
-        );
+        AppToast.error(context, 'Add GOOGLE_VISION_API_KEY to scan meals');
       }
       return;
     }
@@ -320,7 +377,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       final cam = await Permission.camera.request();
       if (!cam.isGranted) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Camera permission required')));
+          AppToast.error(context, 'Camera permission required');
         }
         return;
       }
@@ -331,7 +388,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     final result = await VisionCalorieService.analyze(File(picked.path), state.user!);
     if (!mounted) return;
     if (result.error != null && result.items.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.error!)));
+      AppToast.error(context, result.error!);
       return;
     }
     await showModalBottomSheet(
@@ -349,17 +406,17 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             if (result.isEstimated)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: Text('Some macros AI-estimated — review before logging.', style: TextStyle(color: AppColors.orange, fontSize: 12)),
+                child: Text('Some macros AI-estimated - review before logging.', style: TextStyle(color: context.appColors.sand, fontSize: 12)),
               )
             else
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: Text('Macros from Open Food Facts where matched.', style: TextStyle(color: AppColors.emerald, fontSize: 12)),
+                child: Text('Macros from Open Food Facts where matched.', style: TextStyle(color: context.appColors.mint, fontSize: 12)),
               ),
             if (result.overallConfidence < 0.6)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: Text('Low confidence — please review before logging.', style: TextStyle(color: AppColors.orange, fontSize: 12)),
+                child: Text('Low confidence - please review before logging.', style: TextStyle(color: context.appColors.sand, fontSize: 12)),
               ),
             const SizedBox(height: 12),
             ...result.items.map((item) => ListTile(
@@ -371,7 +428,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: AppColors.accent),
+                style: FilledButton.styleFrom(backgroundColor: context.appColors.primary),
                 onPressed: () async {
                   final reply = await state.logVisionMeal(result.items);
                   await state.addLocalExchange('📷 Meal photo', reply);
@@ -395,7 +452,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     final actionUrl = primaryActionUrl(opt);
 
     return Material(
-      color: AppColors.accent.withValues(alpha: context.isDarkTheme ? 0.12 : 0.06),
+      color: context.appColors.primary.withValues(alpha: context.isDarkTheme ? 0.12 : 0.06),
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: actionUrl != null ? () => launchExternalUrl(context, actionUrl) : null,
@@ -405,7 +462,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.accent.withValues(alpha: 0.2)),
+            border: Border.all(color: context.appColors.primary.withValues(alpha: 0.2)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -457,8 +514,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     return ActionChip(
       label: Text(label, style: const TextStyle(fontSize: 10)),
       visualDensity: VisualDensity.compact,
-      backgroundColor: AppColors.accent.withValues(alpha: 0.12),
-      labelStyle: const TextStyle(color: AppColors.accent),
+      backgroundColor: context.appColors.primary.withValues(alpha: 0.12),
+      labelStyle: TextStyle(color: context.appColors.primary),
       onPressed: () async {
         if (onTap != null) {
           onTap();
@@ -507,10 +564,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
     if (!await SubscriptionService.isPro() && state.freeMessagesRemaining <= 0) {
       if (mounted) {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const PaywallScreen(highlightFeature: 'coach_limit')),
-        );
+        await pushModal(context, const PaywallScreen(highlightFeature: 'coach_limit'));
       }
       return;
     }
@@ -556,11 +610,11 @@ class _CoachHeader extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'AI Coach',
+                  CoachPersonalityService.coachName,
                   style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, height: 1.1, color: t.textPrimary),
                 ),
                 Text(
-                  'Level $level · Your personal trainer',
+                  'Level $level · Your gym companion',
                   style: TextStyle(fontSize: 12, height: 1.2, color: t.textSecondary),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -572,20 +626,22 @@ class _CoachHeader extends StatelessWidget {
             future: SubscriptionService.isPro(),
             builder: (context, snap) {
               if (snap.data == true || remaining >= 5 || !hasUserMessages) return const SizedBox.shrink();
+              final c = context.appColors;
+              final warn = remaining <= 3;
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: remaining <= 3 ? Colors.redAccent.withValues(alpha: 0.12) : AppColors.accent.withValues(alpha: 0.1),
+                  color: warn ? c.errorDim : c.primaryGlow,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.lock_outline, size: 12, color: remaining <= 3 ? Colors.redAccent : AppColors.accent),
+                    Icon(Icons.lock_outline, size: 12, color: warn ? c.error : c.primary),
                     const SizedBox(width: 4),
                     Text(
                       '$remaining msgs left',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: remaining <= 3 ? Colors.redAccent : AppColors.accent),
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: warn ? c.error : c.primary),
                     ),
                   ],
                 ),
@@ -621,7 +677,7 @@ class _CoachContextPicker extends StatelessWidget {
             Text('Coach context', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: t.textPrimary)),
             const SizedBox(height: 10),
             Text(
-              'Choose how much of your recent activity the coach sees when replying — today only, the past week, or the past month.',
+              'Choose how much of your recent activity the coach sees when replying - today only, the past week, or the past month.',
               style: TextStyle(fontSize: 14, color: t.textSecondary, height: 1.45),
             ),
           ],
@@ -657,11 +713,63 @@ class _CoachContextPicker extends StatelessWidget {
   }
 }
 
-class _WelcomeAndSuggestionsCard extends StatelessWidget {
+class _SuggestionChips extends StatelessWidget {
   final List<({IconData icon, String text})> suggestions;
   final ValueChanged<String> onTap;
 
-  const _WelcomeAndSuggestionsCard({required this.suggestions, required this.onTap});
+  const _SuggestionChips({required this.suggestions, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.appTheme;
+    return SizedBox(
+      height: 44,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+        itemCount: suggestions.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (_, i) {
+          final s = suggestions[i];
+          return PressableScale(
+            onTap: () => onTap(s.text),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: t.card,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+                border: Border.all(color: t.borderSubtle),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(s.icon, size: 14, color: context.appColors.primary),
+                  const SizedBox(width: 6),
+                  Text(s.text, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: t.textPrimary)),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _WelcomeAndSuggestionsCard extends StatelessWidget {
+  final String opener;
+  final List<({IconData icon, String text})> suggestions;
+  final ValueChanged<String> onTap;
+  final bool showVoiceChip;
+  final VoidCallback? onVoiceChip;
+
+  const _WelcomeAndSuggestionsCard({
+    required this.opener,
+    required this.suggestions,
+    required this.onTap,
+    this.showVoiceChip = false,
+    this.onVoiceChip,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -671,25 +779,66 @@ class _WelcomeAndSuggestionsCard extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppColors.accent.withValues(alpha: context.isDarkTheme ? 0.15 : 0.08),
+            context.appColors.primary.withValues(alpha: context.isDarkTheme ? 0.15 : 0.08),
             t.card,
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.accent.withValues(alpha: 0.15)),
+        border: Border.all(color: context.appColors.primary.withValues(alpha: 0.15)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Hey! I\'m your coach.', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: t.textPrimary)),
-          const SizedBox(height: 6),
-          Text(
-            'I can plan workouts, swap meals, log food, find delivery nearby, and track your progress — just ask.',
-            style: TextStyle(fontSize: 13, color: t.textSecondary, height: 1.4),
+          Row(
+            children: [
+              const CoachAvatar(size: 36),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      CoachPersonalityService.coachName,
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: t.textPrimary),
+                    ),
+                    Text(
+                      'Checked your day',
+                      style: TextStyle(fontSize: 11, color: t.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
+          const SizedBox(height: 12),
+          Text(opener, style: TextStyle(fontSize: 13, color: t.textSecondary, height: 1.45)),
           const SizedBox(height: 16),
+          if (showVoiceChip && onVoiceChip != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: PressableScale(
+                onTap: onVoiceChip,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: context.appColors.surface2,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                    border: Border.all(color: context.appColors.border),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.mic_outlined, size: 18, color: context.appColors.primary),
+                      const SizedBox(width: 8),
+                      Text('Log what I just ate', style: TextStyle(fontSize: 13, color: context.appColors.textMuted)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           LayoutBuilder(
             builder: (context, constraints) {
               final chipW = (constraints.maxWidth - 8) / 2;
@@ -709,7 +858,7 @@ class _WelcomeAndSuggestionsCard extends StatelessWidget {
                       ),
                       child: Row(
                         children: [
-                          Icon(s.icon, size: 16, color: AppColors.accent),
+                          Icon(s.icon, size: 16, color: context.appColors.primary),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -772,13 +921,13 @@ class _InputDock extends StatelessWidget {
               child: TextField(
                 controller: controller,
                 decoration: InputDecoration(
-                  hintText: 'Ask your AI coach…',
+                  hintText: 'Ask ${CoachPersonalityService.coachName}…',
                   hintStyle: TextStyle(color: t.textMuted, fontSize: 14),
                   filled: true,
                   fillColor: t.inputFill,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
                   enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide(color: AppColors.accent.withValues(alpha: 0.4))),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide(color: context.appColors.primary.withValues(alpha: 0.4))),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 ),
                 onSubmitted: (_) => onSend(),
@@ -803,7 +952,7 @@ class _InputDock extends StatelessWidget {
                 child: Icon(
                   listening ? Icons.mic : Icons.mic_none,
                   key: ValueKey(listening),
-                  color: listening ? Colors.redAccent : t.iconMuted,
+                  color: listening ? context.appColors.error : t.iconMuted,
                   size: 22,
                 ),
               ),
@@ -818,11 +967,11 @@ class _InputDock extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  gradient: typing ? null : AppColors.warmGradient,
+                  gradient: typing ? null : LinearGradient(colors: [context.appColors.primary, context.appColors.sand]),
                   color: typing ? t.progressTrack : null,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.arrow_upward_rounded, color: typing ? t.textMuted : Colors.white, size: 20),
+                child: Icon(Icons.arrow_upward_rounded, color: typing ? t.textMuted : context.appColors.onPrimary, size: 20),
               ),
             ),
           ),

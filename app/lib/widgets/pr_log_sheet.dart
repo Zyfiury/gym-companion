@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
+import '../core/widgets/app_toast.dart';
 import '../theme/app_theme.dart';
 import '../utils/sheet_padding.dart';
 
@@ -64,26 +65,22 @@ Future<void> showPrLogSheet(BuildContext context, {List<String> extraExercises =
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  style: FilledButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: Colors.white),
+                  style: FilledButton.styleFrom(backgroundColor: context.appColors.primary, foregroundColor: context.appColors.onPrimary),
                   onPressed: () async {
                     final name = exerciseCtrl.text.trim();
                     final value = double.tryParse(valueCtrl.text.trim());
                     if (name.isEmpty || value == null) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        const SnackBar(content: Text('Enter an exercise name and a valid number')),
-                      );
+                      AppToast.error(ctx, 'Enter an exercise name and a valid number');
                       return;
                     }
-                    final chip = await ctx.read<AppState>().logPersonalRecord(
+                    await ctx.read<AppState>().logPersonalRecord(
                           exerciseName: name,
                           value: value,
                           unit: unit,
                         );
                     if (ctx.mounted) {
                       Navigator.pop(ctx);
-                      if (chip != null) {
-                        ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(chip)));
-                      }
+                      AppToast.success(ctx, 'New PR 🏆', haptic: HapticFeedbackType.heavy);
                     }
                   },
                   child: const Text('Save PR'),

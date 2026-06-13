@@ -1,0 +1,12 @@
+appId: com.gymcompanion.gym_companion
+---
+- launchApp
+- runFlow: login_flow.yaml
+- tapOn:
+    id: tab-meals
+- assertVisible: "Log food"
+- assertVisible: "Scan"
+- assertVisible: "Search"
+- tapOn:
+    id: log-food-scan
+# Scanner may need camera permission on device — validates Food tab entry point.

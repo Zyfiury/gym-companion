@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../services/location_service.dart';
+import '../core/widgets/app_toast.dart';
 import '../theme/app_theme.dart';
 import 'gradient_button.dart';
 
@@ -44,14 +45,9 @@ class _LocationPermissionSheetState extends State<LocationPermissionSheet> {
     if (result.ok) {
       await context.read<AppState>().dismissLocationPrompt(granted: true);
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            result.location!.isDemoFallback
-                ? 'Using demo location for nearby search'
-                : 'Location enabled',
-          ),
-        ),
+      AppToast.success(
+        context,
+        result.location!.isDemoFallback ? 'Using demo location for nearby search' : 'Location enabled',
       );
       return;
     }
@@ -88,10 +84,10 @@ class _LocationPermissionSheetState extends State<LocationPermissionSheet> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.accent.withValues(alpha: 0.12),
+                  color: context.appColors.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.location_on_outlined, color: AppColors.accent),
+                child: Icon(Icons.location_on_outlined, color: context.appColors.primary),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -109,7 +105,7 @@ class _LocationPermissionSheetState extends State<LocationPermissionSheet> {
           ),
           if (_message != null) ...[
             const SizedBox(height: 12),
-            Text(_message!, style: TextStyle(fontSize: 13, color: AppColors.ember, height: 1.4)),
+            Text(_message!, style: TextStyle(fontSize: 13, color: context.appColors.sand, height: 1.4)),
           ],
           const SizedBox(height: 20),
           GradientButton(

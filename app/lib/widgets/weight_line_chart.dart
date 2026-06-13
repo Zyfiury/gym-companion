@@ -2,7 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../theme/app_theme.dart';
-import 'empty_state_card.dart';
+import '../core/widgets/app_empty_state.dart';
 
 class WeightLineChart extends StatelessWidget {
   final List<Map<String, dynamic>> history;
@@ -14,12 +14,12 @@ class WeightLineChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.appTheme;
     if (history.isEmpty) {
-      return EmptyStateCard(
+      return AppEmptyState(
         icon: Icons.monitor_weight_outlined,
-        headline: 'No weight logged yet',
-        subtext: 'Track your progress by logging your weight regularly.',
-        buttonLabel: "Log today's weight",
-        onAction: onLogWeight,
+        heading: 'No weigh-ins yet',
+        body: 'Log your first weight to start seeing your trend',
+        ctaLabel: 'Log weight',
+        onCta: onLogWeight,
       );
     }
 
@@ -51,7 +51,7 @@ class WeightLineChart extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: (delta <= 0 ? AppColors.emerald : AppColors.orange).withValues(alpha: 0.15),
+                  color: (delta <= 0 ? context.appColors.mint : context.appColors.sand).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -59,7 +59,7 @@ class WeightLineChart extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: delta <= 0 ? AppColors.emerald : AppColors.orange,
+                    color: delta <= 0 ? context.appColors.mint : context.appColors.sand,
                   ),
                 ),
               ),
@@ -68,7 +68,7 @@ class WeightLineChart extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           weights.length == 1
-              ? 'First weigh-in — log again on another day to see your trend'
+              ? 'First weigh-in - log again on another day to see your trend'
               : '${weights.length} weigh-ins · ${first.toStringAsFixed(1)} → ${latest.toStringAsFixed(1)} kg',
           style: TextStyle(fontSize: 12, color: t.textSecondary),
         ),
@@ -122,10 +122,10 @@ class WeightLineChart extends StatelessWidget {
                 LineChartBarData(
                   spots: spots,
                   isCurved: weights.length > 2,
-                  color: AppColors.accent,
+                  color: context.appColors.primary,
                   barWidth: 2.5,
                   dotData: FlDotData(show: weights.length > 1),
-                  belowBarData: BarAreaData(show: true, color: AppColors.accent.withValues(alpha: 0.12)),
+                  belowBarData: BarAreaData(show: true, color: context.appColors.primary.withValues(alpha: 0.12)),
                 ),
               ],
             ),

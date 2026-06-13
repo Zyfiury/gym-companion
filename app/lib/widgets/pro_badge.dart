@@ -8,19 +8,20 @@ class ProBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.appColors;
     return Container(
       padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 10, vertical: compact ? 3 : 4),
       decoration: BoxDecoration(
-        color: AppColors.voltTintBg,
+        color: c.primaryTintBg,
         borderRadius: BorderRadius.circular(100),
-        border: Border.all(color: AppColors.voltTintBorder),
+        border: Border.all(color: c.primaryTintBorder),
       ),
       child: Text(
         'PRO',
         style: TextStyle(
           fontSize: compact ? 9 : 11,
           fontWeight: FontWeight.w500,
-          color: AppColors.voltDark,
+          color: c.primaryDim,
           letterSpacing: 1.2,
         ),
       ),

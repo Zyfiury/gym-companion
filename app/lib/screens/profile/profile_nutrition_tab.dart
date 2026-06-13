@@ -12,11 +12,15 @@ class ProfileNutritionTab extends StatelessWidget {
   final Set<String> allergies;
   final String dietType;
   final String mealVariety;
+  final bool splitCaloriesEnabled;
+  final int trainingDayCalories;
+  final int restDayCalories;
   final List<Map<String, dynamic>> favouriteMeals;
   final TextEditingController favCtrl;
   final ValueChanged<Set<String>> onAllergiesChanged;
   final ValueChanged<String> onDietTypeChanged;
   final ValueChanged<String> onMealVarietyChanged;
+  final ValueChanged<bool> onSplitCaloriesChanged;
   final VoidCallback onAddFavourite;
   final void Function(Map<String, dynamic> meal) onRemoveFavourite;
   final VoidCallback onSave;
@@ -26,11 +30,15 @@ class ProfileNutritionTab extends StatelessWidget {
     required this.allergies,
     required this.dietType,
     required this.mealVariety,
+    required this.splitCaloriesEnabled,
+    required this.trainingDayCalories,
+    required this.restDayCalories,
     required this.favouriteMeals,
     required this.favCtrl,
     required this.onAllergiesChanged,
     required this.onDietTypeChanged,
     required this.onMealVarietyChanged,
+    required this.onSplitCaloriesChanged,
     required this.onAddFavourite,
     required this.onRemoveFavourite,
     required this.onSave,
@@ -93,6 +101,20 @@ class ProfileNutritionTab extends StatelessWidget {
                         onChanged: (v) {
                           if (v != null) onDietTypeChanged(v);
                         },
+                      ),
+                      const SizedBox(height: 20),
+                      SectionLabel('Calorie targets'),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Training day: $trainingDayCalories kcal · Rest day: $restDayCalories kcal',
+                        style: TextStyle(fontSize: 13, color: t.textSecondary),
+                      ),
+                      const SizedBox(height: 8),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text('Split rest/training calories', style: TextStyle(fontSize: 14, color: t.textPrimary)),
+                        value: splitCaloriesEnabled,
+                        onChanged: onSplitCaloriesChanged,
                       ),
                       const SizedBox(height: 12),
                       SectionLabel('Meal variety'),

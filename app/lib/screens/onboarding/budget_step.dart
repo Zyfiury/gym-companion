@@ -21,7 +21,7 @@ class BudgetStep extends StatelessWidget {
         ObsidianStepHeader(
           category: 'Budget',
           title: 'Weekly food budget',
-          subtitle: 'We find the best value at shops near you — chains, independents, and local grocers.',
+          subtitle: 'We find the best value at shops near you - chains, independents, and local grocers.',
           index: 5,
         )
             .animate()

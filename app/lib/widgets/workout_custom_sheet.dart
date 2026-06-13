@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
+import '../core/widgets/app_toast.dart';
 import '../theme/app_theme.dart';
 import '../utils/sheet_padding.dart';
 
@@ -39,7 +40,7 @@ Future<void> showWorkoutCustomSheet(BuildContext context) async {
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: AppColors.accent),
+                style: FilledButton.styleFrom(backgroundColor: context.appColors.primary),
                 onPressed: () async {
                   final msg = await ctx.read<AppState>().logCustomWorkout(
                         description: descCtrl.text.trim().isEmpty ? 'Custom activity' : descCtrl.text.trim(),
@@ -48,7 +49,7 @@ Future<void> showWorkoutCustomSheet(BuildContext context) async {
                   if (ctx.mounted) {
                     Navigator.pop(ctx);
                     if (msg != null) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+                      AppToast.success(context, msg);
                     }
                   }
                 },

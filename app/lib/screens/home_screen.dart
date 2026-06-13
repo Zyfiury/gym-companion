@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/pending_celebrations.dart';
 import '../models/user_data.dart';
 import '../models/workout_status.dart';
 import '../providers/app_state.dart';
 import '../screens/workout_detail_screen.dart';
+import '../core/widgets/app_toast.dart';
+import '../core/widgets/skeletons.dart';
+import '../core/widgets/tab_load_gate.dart';
 import '../theme/app_theme.dart';
+import '../utils/sheet_padding.dart';
 import '../widgets/tdee_update_banner.dart';
-import '../widgets/pr_celebration_modal.dart';
 import '../widgets/health_connect_sheet.dart';
 import '../widgets/premium_ui.dart';
 import '../widgets/pro_badge.dart';
@@ -15,6 +17,12 @@ import '../widgets/staggered_entry.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/page_transitions.dart';
 import '../widgets/water_logger_sheet.dart';
+import '../features/home/morning_checkin_card.dart';
+import '../features/home/calorie_summary_card.dart';
+import '../features/home/weekly_goal_card.dart';
+import '../features/home/weekly_recap_card.dart';
+import '../features/home/fun_fact_card.dart';
+import '../core/widgets/animated_xp_bar.dart';
 import 'paywall_screen.dart';
 import 'profile/profile_screen.dart';
 import '../services/subscription_service.dart';
@@ -27,8 +35,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  PendingPrCelebration? _shownPr;
-
   @override
   void initState() {
     super.initState();
@@ -37,34 +43,41 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  Future<void> _refresh() async {
+    final state = context.read<AppState>();
+    await Future.wait([
+      state.refreshHealthData(),
+      state.refreshDailyLogsHistory(),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.appTheme;
     final state = context.watch<AppState>();
     final u = state.user!;
-    final logged = state.caloriesEaten.round();
     final target = state.caloriesTarget.round();
-    final burned = state.activeCaloriesBurned.round();
-    final net = state.netCalories.round();
-    final protein = u.dailyMacrosLogged.protein;
-    final proteinTarget = u.weeklyPlan.macros['protein'] ?? 140;
     final g = u.gamification;
-    final remaining = target - logged > 0 ? target - logged : 0;
-    final pct = target > 0 ? logged / target : 0.0;
 
-    final pr = state.pendingPrCelebration;
-    if (pr != null && pr != _shownPr) {
-      _shownPr = pr;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) PrCelebrationModal.show(context, pr);
-      });
-    }
-
-    return AmbientBackground(
+    return TabLoadGate(
+      skeleton: ListView(
+        padding: tabListPadding(context),
+        children: const [
+          SkeletonCard(),
+          SizedBox(height: 14),
+          SkeletonCard(),
+          SizedBox(height: 14),
+          SkeletonCard(),
+        ],
+      ),
+      child: AmbientBackground(
+      child: RefreshIndicator(
+      onRefresh: _refresh,
+      color: context.appColors.primary,
       child: ListView(
-        padding: EdgeInsets.fromLTRB(20, 4, 20, 24 + MediaQuery.paddingOf(context).bottom),
+        padding: tabListPadding(context),
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          const StaggeredEntry(index: 0, child: TdeeUpdateBanner()),
           StaggeredEntry(
             index: 0,
             child: Semantics(
@@ -115,62 +128,17 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 20),
-          StaggeredEntry(
-            index: 2,
-            child: AppCard(
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      MacroRing(
-                        progress: pct,
-                        value: '$logged',
-                        label: 'kcal eaten',
-                        sublabel: '/ $target',
-                        color: AppColors.ember,
-                        size: 110,
-                        pulseTrigger: state.foodLogPulseTick,
-                      ),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('TODAY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 0.88, color: t.textMuted)),
-                            const SizedBox(height: 4),
-                            Text('$burned kcal burned', style: TextStyle(fontSize: 13, color: t.textSecondary)),
-                            Text('Net: $net kcal', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: t.textPrimary)),
-                            const SizedBox(height: 6),
-                            Text(
-                              remaining > 0 ? '$remaining kcal left to eat' : 'Target reached',
-                              style: TextStyle(fontSize: 12, color: remaining > 0 ? t.textSecondary : AppColors.emerald, fontWeight: FontWeight.w500),
-                            ),
-                            const SizedBox(height: 18),
-                            MacroBar(label: 'Protein', current: protein, target: proteinTarget, color: AppColors.volt),
-                            const SizedBox(height: 10),
-                            MacroBar(
-                              label: 'Carbs',
-                              current: u.dailyMacrosLogged.carbs,
-                              target: u.weeklyPlan.macros['carbs'] ?? 200,
-                              color: AppColors.ember,
-                            ),
-                            const SizedBox(height: 10),
-                            MacroBar(
-                              label: 'Fat',
-                              current: u.dailyMacrosLogged.fat,
-                              target: u.weeklyPlan.macros['fat'] ?? 60,
-                              color: AppColors.hydro,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
+          const SizedBox(height: 16),
+          const StaggeredEntry(index: 0, child: TdeeUpdateBanner()),
+          const StaggeredEntry(index: 0, child: MorningCheckinCard()),
+          const SizedBox(height: 4),
+          StaggeredEntry(index: 1, child: CalorieSummaryCard()),
+          const SizedBox(height: 14),
+          StaggeredEntry(index: 2, child: WeeklyGoalCard()),
+          const SizedBox(height: 14),
+          StaggeredEntry(index: 2, child: WeeklyRecapCard()),
+          const SizedBox(height: 14),
+          const StaggeredEntry(index: 2, child: FunFactCard()),
           const SizedBox(height: 14),
           StaggeredEntry(
             index: 3,
@@ -180,9 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   StatPill(
                     icon: Icons.directions_walk,
-                    value: state.healthConnected
-                        ? '${u.steps.toInt()}'
-                        : '—',
+                    value: state.healthConnected ? '${u.steps.toInt()}' : '-',
                     label: state.healthConnected && state.stepCaloriesBurned > 0
                         ? '${state.stepCaloriesBurned.round()} kcal'
                         : 'Steps',
@@ -194,14 +160,32 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   StatPill(
                     icon: Icons.water_drop_outlined,
-                    value: u.water > 0 ? '${(u.water / 1000).toStringAsFixed(1)}L' : '—',
+                    value: u.water > 0 ? '${(u.water / 1000).toStringAsFixed(1)}L' : '-',
                     label: 'Water',
                     onTap: () => showWaterLoggerSheet(context),
                   ),
-                  StatPill(icon: Icons.local_fire_department_outlined, value: '${g['streak'] ?? 0}d', label: 'Streak'),
-                  StatPill(icon: Icons.bolt_outlined, value: '${g['xp'] ?? 0}', label: 'XP'),
+                  StatPill(
+                    icon: Icons.local_fire_department_outlined,
+                    value: '${g['streak'] ?? 0}d',
+                    label: 'Streak',
+                    onTap: () => pushPremium(context, const ProfileScreen()),
+                  ),
+                  StatPill(
+                    icon: Icons.bolt_outlined,
+                    value: '${g['xp'] ?? 0}',
+                    label: 'XP',
+                    onTap: () => pushPremium(context, const ProfileScreen()),
+                  ),
                 ],
               ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          StaggeredEntry(
+            index: 3,
+            child: AnimatedXpBar(
+              xp: g['xp'] as int? ?? 0,
+              level: g['level'] as int? ?? 1,
             ),
           ),
           const SizedBox(height: 24),
@@ -217,6 +201,8 @@ class _HomeScreenState extends State<HomeScreen> {
           StaggeredEntry(index: 7, child: _ProStrip()),
         ],
       ),
+      ),
+    ),
     );
   }
 
@@ -242,14 +228,15 @@ class _CoachTeaser extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.appTheme;
+    final c = context.appColors;
     return PressableScale(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: AppColors.voltTintBg,
+          color: c.primaryTintBg,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.voltTintBorder),
+          border: Border.all(color: c.primaryTintBorder),
         ),
         child: Row(
           children: [
@@ -264,7 +251,7 @@ class _CoachTeaser extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.volt),
+            Icon(Icons.arrow_forward_ios, size: 14, color: c.primary),
           ],
         ),
       ),
@@ -276,6 +263,7 @@ class _MealPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.appTheme;
+    final c = context.appColors;
     final meals = context.watch<AppState>().user!.weeklyPlan.meals;
     if (meals.isEmpty) return const SizedBox.shrink();
 
@@ -296,10 +284,10 @@ class _MealPreview extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: AppColors.emerald.withValues(alpha: 0.12),
+                  color: c.mint.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.restaurant, color: AppColors.emerald, size: 22),
+                child: Icon(Icons.restaurant, color: c.mint, size: 22),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -330,7 +318,7 @@ class _ProStrip extends StatelessWidget {
       builder: (context, snap) {
         if (snap.data == true) return const SizedBox.shrink();
         return PressableScale(
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PaywallScreen())),
+          onTap: () => pushModal(context, const PaywallScreen()),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
@@ -361,16 +349,14 @@ class WorkoutPreview extends StatelessWidget {
   static const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   static void _openDetail(BuildContext context, WorkoutDay w) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => WorkoutDetailScreen(workout: w)),
-    );
+    pushPremium(context, WorkoutDetailScreen(workout: w));
   }
 
-  static Color _statusColor(WorkoutStatus status, AppThemeColors t) => switch (status) {
-        WorkoutStatus.completed => AppColors.emerald,
-        WorkoutStatus.skipped => t.textMuted,
-        WorkoutStatus.modified => AppColors.ember,
-        WorkoutStatus.planned => t.textSecondary,
+  static Color _statusColor(WorkoutStatus status, AppColorsExtension c) => switch (status) {
+        WorkoutStatus.completed => c.mint,
+        WorkoutStatus.skipped => c.textMuted,
+        WorkoutStatus.modified => c.sand,
+        WorkoutStatus.planned => c.textSecondary,
       };
 
   static String _statusLabel(WorkoutStatus status) => switch (status) {
@@ -380,16 +366,16 @@ class WorkoutPreview extends StatelessWidget {
         WorkoutStatus.planned => 'Planned',
       };
 
-  static Widget _statusChip(WorkoutStatus status, AppThemeColors t) {
+  static Widget _statusChip(WorkoutStatus status, AppColorsExtension c) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: _statusColor(status, t).withValues(alpha: 0.15),
+        color: _statusColor(status, c).withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
         _statusLabel(status),
-        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: _statusColor(status, t)),
+        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: _statusColor(status, c)),
       ),
     );
   }
@@ -397,6 +383,7 @@ class WorkoutPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.appTheme;
+    final c = context.appColors;
     final state = context.watch<AppState>();
     final u = state.user!;
     final custom = u.activeCustomWorkout;
@@ -417,8 +404,8 @@ class WorkoutPreview extends StatelessWidget {
                     Container(
                       width: 44,
                       height: 44,
-                      decoration: BoxDecoration(gradient: AppColors.gradient, borderRadius: BorderRadius.circular(12)),
-                      child: const Icon(Icons.fitness_center, color: Colors.white, size: 22),
+                      decoration: BoxDecoration(gradient: LinearGradient(colors: [c.dusk, c.primary]), borderRadius: BorderRadius.circular(12)),
+                      child: Icon(Icons.fitness_center, color: c.onPrimary, size: 22),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -445,10 +432,9 @@ class WorkoutPreview extends StatelessWidget {
                         onTap: done
                             ? null
                             : () async {
-                                final messenger = ScaffoldMessenger.of(context);
-                                final chip = await state.completeWorkoutExercise(custom.id, e.value.name);
-                                if (chip != null && context.mounted) {
-                                  messenger.showSnackBar(SnackBar(content: Text(chip)));
+                                await state.completeWorkoutExercise(custom.id, e.value.name);
+                                if (context.mounted) {
+                                  AppToast.success(context, 'Exercise logged ✓');
                                 }
                               },
                         child: Row(
@@ -456,7 +442,7 @@ class WorkoutPreview extends StatelessWidget {
                             Icon(
                               done ? Icons.check_circle : Icons.radio_button_unchecked,
                               size: 22,
-                              color: done ? AppColors.emerald : t.textMuted,
+                              color: done ? c.mint : t.textMuted,
                             ),
                             const SizedBox(width: 12),
                             Expanded(child: Text(e.value.name, style: TextStyle(fontSize: 14, color: t.textPrimary))),
@@ -488,58 +474,58 @@ class WorkoutPreview extends StatelessWidget {
             identifier: 'workout-today-card',
             button: true,
             child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(gradient: AppColors.gradient, borderRadius: BorderRadius.circular(12)),
-                    child: const Icon(Icons.local_fire_department, color: Colors.white, size: 22),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(w.focus, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: t.textPrimary)),
-                        Text('$today · ${w.exercises.length} exercises', style: TextStyle(color: t.textSecondary, fontSize: 13)),
-                      ],
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(gradient: LinearGradient(colors: [c.dusk, c.primary]), borderRadius: BorderRadius.circular(12)),
+                      child: Icon(Icons.local_fire_department, color: c.onPrimary, size: 22),
                     ),
-                  ),
-                  _statusChip(status, t),
-                  const SizedBox(width: 4),
-                  Icon(Icons.chevron_right, color: t.textMuted, size: 20),
-                ],
-              ),
-              const SizedBox(height: 16),
-              ...w.exercises.take(3).toList().asMap().entries.map((e) => StaggeredEntry(
-                    index: e.key,
-                    baseDelayMs: 50,
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 22,
-                            height: 22,
-                            decoration: BoxDecoration(
-                              color: AppColors.accent.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Center(
-                              child: Text('${e.key + 1}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.accent)),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(child: Text(e.value, style: TextStyle(fontSize: 14, color: t.textPrimary))),
+                          Text(w.focus, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: t.textPrimary)),
+                          Text('$today · ${w.exercises.length} exercises', style: TextStyle(color: t.textSecondary, fontSize: 13)),
                         ],
                       ),
                     ),
-                  )),
-            ],
-          ),
+                    _statusChip(status, c),
+                    const SizedBox(width: 4),
+                    Icon(Icons.chevron_right, color: t.textMuted, size: 20),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                ...w.exercises.take(3).toList().asMap().entries.map((e) => StaggeredEntry(
+                      index: e.key,
+                      baseDelayMs: 50,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 22,
+                              height: 22,
+                              decoration: BoxDecoration(
+                                color: c.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Center(
+                                child: Text('${e.key + 1}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: c.primary)),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(child: Text(e.value, style: TextStyle(fontSize: 14, color: t.textPrimary))),
+                          ],
+                        ),
+                      ),
+                    )),
+              ],
+            ),
           ),
         ),
       ],

@@ -4,6 +4,7 @@ import '../services/food_api_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/sheet_padding.dart';
 import '../widgets/barcode_confirm_sheet.dart';
+import '../widgets/inline_loading.dart';
 
 class BarcodeScannerPage extends StatefulWidget {
   const BarcodeScannerPage({super.key});
@@ -42,7 +43,7 @@ class _BarcodeScannerPageState extends State<BarcodeScannerPage> {
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: AppColors.accent),
+                style: FilledButton.styleFrom(backgroundColor: context.appColors.primary),
                 onPressed: () async {
                   final product = {
                     'name': nameCtrl.text.trim().isEmpty ? 'Unknown item' : nameCtrl.text.trim(),
@@ -94,19 +95,29 @@ class _BarcodeScannerPageState extends State<BarcodeScannerPage> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.appColors;
+    final cameraBg = c.bgDeep;
     return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(title: const Text('Scan Food'), backgroundColor: Colors.black),
+      backgroundColor: cameraBg,
+      appBar: AppBar(
+        title: const Text('Scan food'),
+        backgroundColor: cameraBg,
+        foregroundColor: c.onPrimary,
+        elevation: 0,
+      ),
       body: Stack(
         children: [
           MobileScanner(controller: _controller, onDetect: _onDetect),
-          if (_processing) const Center(child: CircularProgressIndicator(color: AppColors.violet)),
-          const Positioned(
+          if (_processing) const Center(child: InlineLoading(width: 36, height: 36)),
+          Positioned(
             bottom: 40,
             left: 0,
             right: 0,
             child: Center(
-              child: Text('Point camera at barcode', style: TextStyle(color: Colors.white, fontSize: 16)),
+              child: Text(
+                'Point camera at barcode',
+                style: TextStyle(color: c.onPrimary, fontSize: 16, fontWeight: FontWeight.w500),
+              ),
             ),
           ),
         ],

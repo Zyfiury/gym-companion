@@ -24,7 +24,7 @@ class MealMonthChart extends StatelessWidget {
       final cal = (sorted[i]['calories_logged'] as num?)?.toInt() ?? 0;
       return BarChartGroupData(
         x: i,
-        barRods: [BarChartRodData(toY: cal.toDouble(), color: AppColors.orange, width: 8, borderRadius: const BorderRadius.vertical(top: Radius.circular(4)))],
+        barRods: [BarChartRodData(toY: cal.toDouble(), color: context.appColors.sand, width: 8, borderRadius: const BorderRadius.vertical(top: Radius.circular(4)))],
       );
     });
 

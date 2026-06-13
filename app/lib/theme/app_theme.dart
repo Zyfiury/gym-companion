@@ -16,25 +16,25 @@ import '../core/theme/app_theme.dart' as core;
 ThemeData buildLightTheme() => core.AppTheme.light;
 ThemeData buildDarkTheme() => core.AppTheme.dark;
 
-// ─── Obsidian Premium (onboarding) — Sea Mist palette ───────────────────────
+// ─── Obsidian Premium (onboarding) - Sea Mist palette ───────────────────────
 
 class ObsidianTokens {
   ObsidianTokens._();
 
-  static const base = Color(0xFF111C22);
-  static const heroAccent = Color(0xFF7FB5A0);
-  static const heroAccentDark = Color(0xFF6A9D8A);
-  static const textPrimary = Color(0xFFE8F0F4);
-  static const textSecondary = Color(0xFF8BAABB);
-  static const textMuted = Color(0xFF566F7D);
-  static const textOnAccent = Color(0xFF0C1519);
-  static const glassFill = Color(0x14E8F0F4);
-  static const glassBorder = Color(0x142E4A5C);
-  static const glassHighlight = Color(0x0AE8F0F4);
-  static const surfaceDark = Color(0xFF182830);
-  static const surfaceMuted = Color(0xFF1F3340);
-  static const track = Color(0xFF2E4A5C);
-  static const grainOpacity = 0.04;
+  static const base = Color(0xFFE8EEF0);
+  static const heroAccent = Color(0xFF5AA7A7);
+  static const heroAccentDark = Color(0xFF3A8888);
+  static const textPrimary = Color(0xFF1A2E30);
+  static const textSecondary = Color(0xFF3A5A60);
+  static const textMuted = Color(0xFF6A8A90);
+  static const textOnAccent = Color(0xFFF4F8F8);
+  static const glassFill = Color(0xFFF4F8F8);
+  static const glassBorder = Color(0xFFC9D6DC);
+  static const glassHighlight = Color(0x0A5AA7A7);
+  static const surfaceDark = Color(0xFFF4F8F8);
+  static const surfaceMuted = Color(0xFFDCE8EA);
+  static const track = Color(0xFFDCE8EA);
+  static const grainOpacity = 0.02;
 
   static const radiusSm = AppRadius.sm;
   static const radiusMd = AppRadius.card;
@@ -70,7 +70,7 @@ class ObsidianTokens {
           offset: const Offset(0, 8),
         ),
         BoxShadow(
-          color: Color(0x660C1519),
+          color: Color(0x140C1519),
           blurRadius: 12,
           offset: const Offset(0, 4),
         ),

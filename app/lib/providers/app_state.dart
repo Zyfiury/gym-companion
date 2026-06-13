@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/release_config.dart';
 import '../constants/xp_rewards.dart';
@@ -9,12 +10,18 @@ import '../models/today_activity_log.dart';
 import '../models/user_data.dart';
 import '../models/workout_session.dart';
 import '../models/workout_status.dart';
+import '../models/weekly_goal.dart';
+import '../models/progression_event.dart';
+import '../services/progressive_overload_service.dart';
+import '../services/recovery_adjustment_service.dart';
+import '../widgets/water_logger_sheet.dart';
 import '../services/auth_service.dart' show AuthService, TestAccounts;
 import 'package:flutter/material.dart';
 import '../services/analytics_service.dart';
 import '../services/avatar_service.dart';
 import '../services/backend_config.dart';
 import '../services/chat_service.dart';
+import '../services/coach_personality_service.dart';
 import '../services/delivery_service.dart';
 import '../services/firebase_service.dart';
 import '../services/groq_chat_service.dart';
@@ -38,7 +45,11 @@ import '../services/tdee_service.dart';
 import '../utils/personal_record_helper.dart';
 import '../utils/weight_history.dart';
 import '../services/workout_adaptation_service.dart';
+import '../services/achievement_service.dart';
 import '../services/location_service.dart';
+import '../services/fun_facts_service.dart';
+import '../utils/macro_helpers.dart';
+import '../utils/meal_type_helper.dart';
 
 enum BackendMode { firebase, supabase, local }
 
@@ -58,6 +69,97 @@ class AppState extends ChangeNotifier {
   BackendMode backend = BackendMode.local;
   StreamSubscription? _feedSubscription;
   bool shouldShowLocationPrompt = false;
+
+  /// Cached Pro status - avoids RevenueCat flicker on every screen.
+  bool isPro = false;
+  bool isProResolved = false;
+  int? pendingLevelUp;
+  String? pendingXpToast;
+  String? lastChatFailedMessage;
+  FunFact? freshFunFact;
+  final Map<String, SessionLog?> _exerciseHistoryCache = {};
+
+  Future<void> refreshProStatus() async {
+    isPro = await SubscriptionService.isPro();
+    isProResolved = true;
+    notifyListeners();
+  }
+
+  void clearPendingXpToast() {
+    pendingXpToast = null;
+  }
+
+  void clearPendingLevelUp() {
+    pendingLevelUp = null;
+  }
+
+  void clearFreshFunFact() {
+    freshFunFact = null;
+    notifyListeners();
+  }
+
+  void _maybeSetFreshFunFact(FunFact? fact) {
+    if (fact != null) {
+      freshFunFact = fact;
+    }
+  }
+
+  static String exerciseId(String name) => name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '_');
+
+  Future<SessionLog?> fetchLastExerciseSession(String exerciseName) async {
+    final id = exerciseId(exerciseName);
+    if (_exerciseHistoryCache.containsKey(id)) return _exerciseHistoryCache[id];
+    if (!useFirebase || userId == null) return null;
+    final raw = await FirebaseService.getLastExerciseSession(userId!, id);
+    if (raw == null) {
+      _exerciseHistoryCache[id] = null;
+      return null;
+    }
+    final setsRaw = raw['sets'] as List? ?? [];
+    final sets = setsRaw.map((s) {
+      final m = Map<String, dynamic>.from(s as Map);
+      return SetLog(
+        reps: (m['reps'] as num?)?.round() ?? 0,
+        weightKg: (m['weight'] as num?)?.toDouble(),
+        targetReps: (m['reps'] as num?)?.round() ?? 0,
+      );
+    }).toList();
+    final session = SessionLog(date: raw['date'] as String? ?? '', sets: sets);
+    _exerciseHistoryCache[id] = session;
+    return session;
+  }
+
+  void _recordDailyActivity() {
+    if (user == null) return;
+    final g = Map<String, dynamic>.from(user!.gamification);
+    final today = _todayKey();
+    g['lastActiveDate'] = today;
+    user!.gamification = g;
+  }
+
+  void evaluateStreakOnLaunch() {
+    if (user == null) return;
+    final g = Map<String, dynamic>.from(user!.gamification);
+    final today = _todayKey();
+    final last = g['lastActiveDate'] as String?;
+    if (last == null || last == today) return;
+    final lastDate = DateTime.tryParse(last);
+    final todayDate = DateTime.parse(today);
+    if (lastDate == null) return;
+    final gap = todayDate.difference(lastDate).inDays;
+    if (gap > 1) {
+      final streak = g['streak'] as int? ?? 0;
+      if (streak > 0) {
+        final freezes = g['streakFreezes'] as int? ?? 0;
+        if (freezes > 0 && gap == 2) {
+          g['streakFreezes'] = freezes - 1;
+        } else {
+          g['streak'] = 0;
+        }
+      }
+    }
+    user!.gamification = g;
+  }
 
   bool get useFirebase => backend == BackendMode.firebase;
   bool get useSupabase => backend == BackendMode.supabase;
@@ -80,6 +182,7 @@ class AppState extends ChangeNotifier {
 
       isDark = await _storage.isDarkTheme();
       coachContextPeriod = await _storage.getCoachContextPeriod();
+      _coachOpenerDate = await _storage.getCoachOpenerDate();
 
       if (useFirebase) {
         final u = FirebaseService.currentUser!;
@@ -138,14 +241,34 @@ class AppState extends ChangeNotifier {
 
     if (user != null) {
       WeightHistoryHelper.seedBaselineIfEmpty(user!.weightHistory, user!.weight);
+      _syncDayCalorieTargets();
+      evaluateStreakOnLaunch();
     }
-    user?.resetMealsLoggedIfNewDay();
+    final rolledToNewDay = _resetDailyStateIfNeeded();
+    if (rolledToNewDay.changed && userId != null) {
+      await _saveUser(userId!);
+    }
+    _startDailyRolloverTimer();
+    await refreshProStatus();
     if (useFirebase && userId != null) {
       dailyLogsHistory = await FirebaseService.fetchDailyLogsRange(userId!, 30);
       leaderboard = await FirebaseService.fetchLeaderboard();
       _hydrateTodayActivityFromHistory();
       await _refreshTodayFoodEntries();
+      activeGoals = await FirebaseService.fetchWeeklyGoals(userId!);
+      user!.weeklyGoals = List.from(activeGoals);
+      await _loadTodayCheckin();
+    } else {
+      activeGoals = List.from(user!.weeklyGoals);
+      _mergeLocalDailyLogs();
     }
+    final nutritionFixed = _reconcileTodayNutritionFromEntries();
+    if (nutritionFixed && userId != null) {
+      await _saveUser(userId!);
+    }
+    _rebuildWeeklyVolumeFromLogs();
+    await checkWeeklyGoals();
+    await evaluateEndedWeeklyGoals();
     await refreshHealthData();
     await _migrateWorkoutPlanIfNeeded(uid);
     await _checkLocationPrompt();
@@ -205,6 +328,44 @@ class AppState extends ChangeNotifier {
     return result;
   }
 
+  Future<void> clearDeliveryOptions() async {
+    if (user == null) return;
+    if (user!.weeklyPlan.deliveryOptions?.isEmpty ?? true) return;
+    await patchUser((u) {
+      u.weeklyPlan = WeeklyPlan(
+        macros: u.weeklyPlan.macros,
+        workouts: u.weeklyPlan.workouts,
+        meals: u.weeklyPlan.meals,
+        shoppingList: u.weeklyPlan.shoppingList,
+        deliveryOptions: const [],
+      );
+    });
+  }
+
+  static String deliveryFavKey(Map<String, dynamic> option) =>
+      '${option['restaurant'] ?? ''}|${option['dish'] ?? ''}';
+
+  bool isFavouriteDelivery(Map<String, dynamic> option) {
+    final key = deliveryFavKey(option);
+    return user?.favouriteDelivery.any((f) => deliveryFavKey(f) == key) ?? false;
+  }
+
+  Future<void> toggleFavouriteDelivery(Map<String, dynamic> option) async {
+    if (user == null) return;
+    final key = deliveryFavKey(option);
+    await patchUser((u) {
+      final favs = List<Map<String, dynamic>>.from(u.favouriteDelivery);
+      final idx = favs.indexWhere((f) => deliveryFavKey(f) == key);
+      if (idx >= 0) {
+        favs.removeAt(idx);
+      } else {
+        favs.insert(0, {...option, 'savedAt': DateTime.now().toIso8601String()});
+        if (favs.length > 20) favs.removeRange(20, favs.length);
+      }
+      u.favouriteDelivery = favs;
+    });
+  }
+
   bool healthConnected = false;
   String coachContextPeriod = 'day';
   List<Map<String, dynamic>> dailyLogsHistory = [];
@@ -212,13 +373,39 @@ class AppState extends ChangeNotifier {
   TodayActivityLog todayActivity = TodayActivityLog();
   List<Map<String, dynamic>> todayFoodEntries = [];
   Timer? _healthRefreshTimer;
+  Timer? _dailyRolloverTimer;
   int foodLogPulseTick = 0;
   PendingTdeeUpdate? pendingTdeeUpdate;
   PendingPrCelebration? pendingPrCelebration;
+  PendingGoalCelebration? pendingGoalCelebration;
+  List<WeeklyGoal> activeGoals = [];
+  int todayEnergyLevel = 0;
+  double lastNightSleepHours = 0;
+  String workoutAdjustment = 'none';
+  Map<String, double> weeklyVolume = {};
+  String? _weeklyVolumeWeekKey;
+  List<ProgressionEvent> recentProgressions = [];
+  String? _morningCheckinDate;
+  String? _coachOpenerDate;
+  bool get morningCheckinDoneToday =>
+      _morningCheckinDate == DateTime.now().toIso8601String().substring(0, 10);
 
   double get caloriesEaten => user?.dailyMacrosLogged.calories.toDouble() ?? 0;
-  double get caloriesTarget =>
-      (user?.weeklyPlan.macros['calories'] ?? user?.tdee ?? 0).toDouble();
+  bool get splitCaloriesEnabled => user?.splitCaloriesEnabled ?? true;
+  double get trainingDayCalories =>
+      (user?.trainingDayCalories ?? user?.weeklyPlan.macros['calories'] ?? user?.tdee ?? 0).toDouble();
+  double get restDayCalories =>
+      (user?.restDayCalories ?? (trainingDayCalories - 200)).toDouble();
+  bool get isTrainingDay {
+    final w = todayWorkoutDay;
+    if (w == null || w.focus.toLowerCase().contains('rest')) return false;
+    return todayWorkoutStatus == WorkoutStatus.planned ||
+        todayWorkoutStatus == WorkoutStatus.completed ||
+        todayWorkoutStatus == WorkoutStatus.modified;
+  }
+  double get todayCalorieTarget => splitCaloriesEnabled && !isTrainingDay ? restDayCalories : trainingDayCalories;
+  double get caloriesTarget => todayCalorieTarget;
+  double get waterLitres => (user?.water ?? 0) / 1000;
   double get stepCaloriesBurned => todayActivity.stepCalories;
   double get workoutCaloriesBurned => todayActivity.workoutCalories;
   double get activeCaloriesBurned => todayActivity.activeCaloriesBurned;
@@ -240,6 +427,11 @@ class AppState extends ChangeNotifier {
 
   void clearPendingPrCelebration() {
     pendingPrCelebration = null;
+    notifyListeners();
+  }
+
+  void clearPendingGoalCelebration() {
+    pendingGoalCelebration = null;
     notifyListeners();
   }
 
@@ -268,6 +460,201 @@ class AppState extends ChangeNotifier {
     todayFoodEntries = await FirebaseService.fetchTodayFoodEntries(userId!);
   }
 
+  /// Rebuild today's food log and macro/micro totals from dated entries only.
+  bool _reconcileTodayNutritionFromEntries() {
+    if (user == null) return false;
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+
+    List<Map<String, dynamic>> entries;
+    if (useFirebase && todayFoodEntries.isNotEmpty) {
+      entries = todayFoodEntries.map((e) => Map<String, dynamic>.from(e)).toList();
+    } else if (useFirebase && todayFoodEntries.isEmpty) {
+      entries = [];
+    } else {
+      entries = user!.foodLog
+          .where((e) => (e['date'] as String?) == today)
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    }
+
+    for (final e in entries) {
+      MacroHelpers.applyMicrosToEntry(e);
+    }
+
+    final nextTotals = MacroHelpers.sumFromEntries(entries);
+    final changed = user!.foodLog.length != entries.length ||
+        user!.dailyMacrosLogged.calories != nextTotals.calories ||
+        user!.dailyMacrosLogged.protein != nextTotals.protein ||
+        user!.dailyMacrosLogged.carbs != nextTotals.carbs ||
+        user!.dailyMacrosLogged.fat != nextTotals.fat ||
+        user!.dailyMacrosLogged.fiber != nextTotals.fiber ||
+        user!.dailyMacrosLogged.sugar != nextTotals.sugar ||
+        user!.dailyMacrosLogged.sodiumMg != nextTotals.sodiumMg ||
+        user!.dailyLogDate != today;
+
+    user!.foodLog = entries;
+    user!.dailyMacrosLogged = nextTotals;
+    user!.dailyLogDate = today;
+    return changed;
+  }
+
+  String _weekStartKey() {
+    final now = DateTime.now();
+    final monday = now.subtract(Duration(days: now.weekday - 1));
+    return DateTime(monday.year, monday.month, monday.day).toIso8601String().substring(0, 10);
+  }
+
+  bool _resetWeeklyStateIfNeeded() {
+    if (user == null) return false;
+    final weekKey = _weekStartKey();
+    var changed = false;
+    final g = Map<String, dynamic>.from(user!.gamification);
+    final prevBudgetWeek = g['budgetWeekStart'] as String?;
+    if (prevBudgetWeek == null) {
+      g['budgetWeekStart'] = weekKey;
+    } else if (prevBudgetWeek != weekKey) {
+      g['budgetWeekStart'] = weekKey;
+      user!.budgetSpent = 0;
+      changed = true;
+    }
+    user!.gamification = g;
+
+    if (_weeklyVolumeWeekKey != weekKey) {
+      _weeklyVolumeWeekKey = weekKey;
+      changed = true;
+    }
+    return changed;
+  }
+
+  Map<String, dynamic>? _activitySnapshotForArchive() {
+    if (todayActivity.workoutStatus == WorkoutStatus.planned &&
+        todayActivity.workoutCalories == 0 &&
+        todayActivity.stepCalories == 0) {
+      return null;
+    }
+    return todayActivity.toDailyLogFields();
+  }
+
+  void _mergeLocalDailyLogs() {
+    if (user == null) return;
+    dailyLogsHistory = List<Map<String, dynamic>>.from(user!.dailyLogArchive);
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    if (user!.dailyLogDate == today &&
+        (user!.dailyMacrosLogged.calories > 0 ||
+            user!.foodLog.isNotEmpty ||
+            user!.water > 0 ||
+            todayActivity.workoutStatus != WorkoutStatus.planned)) {
+      dailyLogsHistory.removeWhere((l) => l['date'] == today);
+      dailyLogsHistory.add({
+        'date': today,
+        'calories_logged': user!.dailyMacrosLogged.calories,
+        'protein_logged': user!.dailyMacrosLogged.protein,
+        'carbs_logged': user!.dailyMacrosLogged.carbs,
+        'fat_logged': user!.dailyMacrosLogged.fat,
+        'fiber_logged': user!.dailyMacrosLogged.fiber,
+        'sugar_logged': user!.dailyMacrosLogged.sugar,
+        'sodium_mg_logged': user!.dailyMacrosLogged.sodiumMg,
+        'water_ml': user!.water.round(),
+        'steps': user!.steps.round(),
+        ...todayActivity.toDailyLogFields(),
+      });
+    }
+    dailyLogsHistory.sort((a, b) => (a['date'] as String).compareTo(b['date'] as String));
+  }
+
+  String _muscleGroupKey(String name) {
+    final n = name.toLowerCase();
+    if (n.contains('squat') || n.contains('leg') || n.contains('rdl') || n.contains('deadlift')) {
+      return 'Legs';
+    }
+    if (n.contains('row') || n.contains('pull') || n.contains('curl')) return 'Pull';
+    if (n.contains('press') || n.contains('push') || n.contains('ohp')) return 'Push';
+    return 'Other';
+  }
+
+  void _rebuildWeeklyVolumeFromLogs() {
+    final weekKey = _weekStartKey();
+    _weeklyVolumeWeekKey = weekKey;
+    final volume = <String, double>{};
+    final sources = <Map<String, dynamic>>[];
+    sources.addAll(dailyLogsHistory);
+    if (user != null) sources.addAll(user!.dailyLogArchive);
+
+    for (final log in sources) {
+      final date = log['date'] as String? ?? '';
+      if (date.compareTo(weekKey) < 0) continue;
+      final sessionMap = log['workout_session'] as Map<String, dynamic>?;
+      if (sessionMap == null) continue;
+      final session = WorkoutSessionLog.fromJson(sessionMap);
+      for (final ex in session.exercises) {
+        final vol = (ex.weightKg ?? 0) * ex.reps * ex.sets;
+        if (vol <= 0) continue;
+        final key = _muscleGroupKey(ex.name);
+        volume[key] = (volume[key] ?? 0) + vol;
+      }
+    }
+    weeklyVolume = volume;
+  }
+
+  Map<String, dynamic>? _dailyLogForDate(String date) {
+    final fromHistory = dailyLogsHistory.cast<Map<String, dynamic>?>().firstWhere(
+          (l) => l?['date'] == date,
+          orElse: () => null,
+        );
+    if (fromHistory != null) return fromHistory;
+    if (user == null) return null;
+    return user!.dailyLogArchive.cast<Map<String, dynamic>?>().firstWhere(
+          (l) => l?['date'] == date,
+          orElse: () => null,
+        );
+  }
+
+  ({bool changed, bool macrosRolled, bool weekRolled}) _resetDailyStateIfNeeded() {
+    if (user == null) return (changed: false, macrosRolled: false, weekRolled: false);
+    final todaysWorkout = todayWorkoutDay;
+    final mealsReset = user!.resetMealsLoggedIfNewDay();
+    final messagesReset = user!.resetFreeMessagesIfNewDay();
+    final macrosReset = user!.resetDailyLogIfNewDay(
+      activitySnapshot: _activitySnapshotForArchive(),
+    );
+    final weekReset = _resetWeeklyStateIfNeeded();
+
+    if (macrosReset) {
+      todayActivity = TodayActivityLog(workoutName: todaysWorkout?.focus);
+      todayFoodEntries = [];
+      todayEnergyLevel = 0;
+      lastNightSleepHours = 0;
+      workoutAdjustment = 'none';
+      _morningCheckinDate = null;
+      foodLogPulseTick++;
+      pendingPrCelebration = null;
+      pendingGoalCelebration = null;
+      _recomputeStepCalories();
+      if (!useFirebase) _mergeLocalDailyLogs();
+    }
+    if (weekReset) {
+      _rebuildWeeklyVolumeFromLogs();
+    }
+
+    final changed = mealsReset || messagesReset || macrosReset || weekReset;
+    return (changed: changed, macrosRolled: macrosReset, weekRolled: weekReset);
+  }
+
+  Future<void> ensureDailyStateFresh({bool notify = true}) async {
+    if (user == null || userId == null) return;
+    final rolled = _resetDailyStateIfNeeded();
+    if (!rolled.changed) return;
+    if (rolled.macrosRolled) {
+      _reconcileTodayNutritionFromEntries();
+      await checkWeeklyGoals();
+    }
+    if (useFirebase) {
+      await _refreshTodayFoodEntries();
+    }
+    await _saveUser(userId!);
+    if (notify) notifyListeners();
+  }
+
   void _recomputeStepCalories() {
     if (user == null) return;
     final steps = user!.steps.round();
@@ -282,12 +669,21 @@ class AppState extends ChangeNotifier {
     });
   }
 
+  void _startDailyRolloverTimer() {
+    _dailyRolloverTimer?.cancel();
+    if (user == null) return;
+    _dailyRolloverTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      ensureDailyStateFresh();
+    });
+  }
+
   void disposeHealthTimer() {
     _healthRefreshTimer?.cancel();
   }
 
   Future<void> refreshHealthData({bool requestIfNeeded = false}) async {
     if (user == null) return;
+    await ensureDailyStateFresh(notify: false);
     try {
       await HealthService.ensureConfigured();
       var granted = await HealthService.hasPermissions();
@@ -340,7 +736,7 @@ class AppState extends ChangeNotifier {
         user!.steps = steps.toDouble();
         if (userId != null) await _saveUser(userId!);
         notifyListeners();
-        return steps > 0 ? '✓ Connected — $steps steps today' : '✓ Connected — steps will sync as you move';
+        return steps > 0 ? '✓ Connected - $steps steps today' : '✓ Connected - steps will sync as you move';
       }
 
       notifyListeners();
@@ -392,6 +788,8 @@ class AppState extends ChangeNotifier {
   @override
   void dispose() {
     _feedSubscription?.cancel();
+    _healthRefreshTimer?.cancel();
+    _dailyRolloverTimer?.cancel();
     super.dispose();
   }
 
@@ -569,6 +967,8 @@ class AppState extends ChangeNotifier {
   Future<void> logout() async {
     _feedSubscription?.cancel();
     _feedSubscription = null;
+    _healthRefreshTimer?.cancel();
+    _dailyRolloverTimer?.cancel();
     if (useFirebase) await FirebaseService.signOut();
     if (useSupabase) await SupabaseService.signOut();
     await _auth.clearSession();
@@ -659,6 +1059,7 @@ class AppState extends ChangeNotifier {
 
   Future<String> logVisionMeal(List<VisionFoodItem> items) async {
     if (user == null || userId == null) return '';
+    await ensureDailyStateFresh(notify: false);
     var cal = 0, pro = 0, carbs = 0, fat = 0;
     for (final item in items.where((i) => !i.blocked)) {
       cal += item.calories;
@@ -671,6 +1072,9 @@ class AppState extends ChangeNotifier {
         'grams': item.grams,
         'calories': item.calories,
         'protein': item.protein,
+        'carbs': item.carbs,
+        'fat': item.fat,
+        'source': 'photo',
       });
     }
     user!.dailyMacrosLogged.calories += cal;
@@ -679,7 +1083,7 @@ class AppState extends ChangeNotifier {
     user!.dailyMacrosLogged.fat += fat;
     await _saveUser(userId!);
     notifyListeners();
-    return '✅ Logged ${items.where((i) => !i.blocked).map((i) => '${i.grams.round()}g ${i.name}').join(', ')} — $cal kcal, P ${pro}g';
+    return '✅ Logged ${items.where((i) => !i.blocked).map((i) => '${i.grams.round()}g ${i.name}').join(', ')} - $cal kcal, P ${pro}g';
   }
 
   Future<void> swapMeal(String mealType) async {
@@ -760,17 +1164,92 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  static String _todayKey() => DateTime.now().toIso8601String().substring(0, 10);
+
+  bool hasUserMessageToday() {
+    final today = _todayKey();
+    return chatMessages.any((m) => m.role == 'user' && m.ts.toIso8601String().substring(0, 10) == today);
+  }
+
+  /// Injects Mara's daily opener for returning users; empty-state uses the welcome card.
+  Future<void> ensureCoachDailyOpener() async {
+    if (user == null || userId == null) return;
+    final today = _todayKey();
+    if (_coachOpenerDate == today) return;
+    _coachOpenerDate = today;
+    await _storage.setCoachOpenerDate(today);
+
+    if (hasUserMessageToday()) return;
+
+    if (chatMessages.isEmpty) {
+      notifyListeners();
+      return;
+    }
+
+    final opener = CoachPersonalityService.dailyOpener(this);
+    final alreadyHas = chatMessages.any(
+      (m) => m.role == 'assistant' && m.ts.toIso8601String().substring(0, 10) == today && m.content == opener,
+    );
+    if (!alreadyHas) {
+      chatMessages.add(ChatMessage(role: 'assistant', content: opener));
+      await _saveChat(userId!);
+    }
+    notifyListeners();
+  }
+
+  Future<void> _consumeFreeChatMessageIfNeeded() async {
+    if (isPro) return;
+    await decrementFreeMessage();
+  }
+
   Future<String> sendChat(String text) async {
     if (user == null || userId == null) return '';
 
-    if (!await SubscriptionService.isPro()) {
+    if (!isPro) {
       if (user!.freeMessagesRemaining <= 0) return 'FREE_LIMIT';
     }
 
     chatMessages.add(ChatMessage(role: 'user', content: text));
     chatTyping = true;
+    lastChatFailedMessage = null;
     notifyListeners();
 
+    try {
+      return await _sendChatInternal(text);
+    } catch (e) {
+      debugPrint('sendChat error: $e');
+      lastChatFailedMessage = text;
+      chatMessages.add(ChatMessage(
+        role: 'assistant',
+        content: 'Something went wrong - tap Retry to send again.',
+        actionChip: 'Retry',
+      ));
+      await _saveChat(userId!);
+      return 'ERROR';
+    } finally {
+      chatTyping = false;
+      notifyListeners();
+    }
+  }
+
+  Future<String> retryLastChat() async {
+    final msg = lastChatFailedMessage;
+    if (msg == null || userId == null) return '';
+    if (chatMessages.isNotEmpty && chatMessages.last.actionChip == 'Retry') {
+      chatMessages.removeLast();
+    }
+    lastChatFailedMessage = null;
+    chatTyping = true;
+    notifyListeners();
+    try {
+      return await _sendChatInternal(msg);
+    } finally {
+      chatTyping = false;
+      notifyListeners();
+    }
+  }
+
+  Future<String> _sendChatInternal(String text) async {
     OpenClawService.sendChatCommand(message: text, user: user!, displayName: displayName);
 
     String reply;
@@ -784,7 +1263,7 @@ class AppState extends ChangeNotifier {
         chatMessages.add(ChatMessage(role: 'assistant', content: reply));
         await _saveChat(userId!);
         chatTyping = false;
-        SubscriptionService.recordChatMessage();
+        await _consumeFreeChatMessageIfNeeded();
         notifyListeners();
         return reply;
       }
@@ -810,7 +1289,7 @@ class AppState extends ChangeNotifier {
       chatMessages.add(ChatMessage(role: 'assistant', content: reply));
       await _saveChat(userId!);
       chatTyping = false;
-      SubscriptionService.recordChatMessage();
+      await _consumeFreeChatMessageIfNeeded();
       notifyListeners();
       return reply;
     }
@@ -832,7 +1311,7 @@ class AppState extends ChangeNotifier {
       chatMessages.add(ChatMessage(role: 'assistant', content: reply, deliveryOptions: deliveryOptions));
       await _saveChat(userId!);
       chatTyping = false;
-      SubscriptionService.recordChatMessage();
+      await _consumeFreeChatMessageIfNeeded();
       notifyListeners();
       return reply;
     }
@@ -868,12 +1347,17 @@ class AppState extends ChangeNotifier {
         history: history,
       );
       final chip = await _applyAiActions(groq.actions);
-      reply = groq.displayText.isNotEmpty ? groq.displayText : ruleResult.reply;
+      if (!GroqChatService.isErrorOrEmpty(groq.displayText)) {
+        reply = groq.displayText;
+      } else if (ruleResult.reply.isNotEmpty && !ruleResult.reply.startsWith("I'm Mara - I can")) {
+        reply = ruleResult.reply;
+      } else {
+        reply = groq.displayText.isNotEmpty ? groq.displayText : ruleResult.reply;
+      }
       chatMessages.add(ChatMessage(role: 'assistant', content: reply, actionChip: chip));
       await _saveChat(userId!);
       chatTyping = false;
-      await decrementFreeMessage();
-      SubscriptionService.recordChatMessage();
+      await _consumeFreeChatMessageIfNeeded();
       notifyListeners();
       return reply;
     } else {
@@ -892,8 +1376,7 @@ class AppState extends ChangeNotifier {
     chatMessages.add(ChatMessage(role: 'assistant', content: reply));
     await _saveChat(userId!);
     chatTyping = false;
-    await decrementFreeMessage();
-    SubscriptionService.recordChatMessage();
+    await _consumeFreeChatMessageIfNeeded();
     notifyListeners();
     return reply;
   }
@@ -934,7 +1417,8 @@ class AppState extends ChangeNotifier {
           chip = '✓ Meal swapped';
           break;
         case 'COMPLETE_WORKOUT':
-          chip = 'Open the Workout tab and tap Mark as Complete to log your session properly.';
+          tabIndex = 1;
+          chip = '✓ Opening Workout - tap Start workout to log your sets';
           break;
         case 'UPDATE_GOAL':
           user!.goal = a.data['goal'] as String;
@@ -987,6 +1471,20 @@ class AppState extends ChangeNotifier {
         case 'SET_PERIOD':
           user!.tracksPeriod = a.data['phase'] != null;
           user!.periodPhase = a.data['phase'] as String?;
+          break;
+        case 'SET_GOAL':
+          final typeName = a.data['type'] as String;
+          final goalType = GoalType.values.firstWhere(
+            (t) => t.name == typeName,
+            orElse: () => GoalType.protein,
+          );
+          await setWeeklyGoal(
+            type: goalType,
+            targetValue: (a.data['targetValue'] as num).toDouble(),
+            targetDays: a.data['targetDays'] as int,
+            createdBy: 'ai',
+          );
+          chip = '✓ Weekly goal set';
           break;
       }
     }
@@ -1108,9 +1606,14 @@ class AppState extends ChangeNotifier {
   Future<void> awardXp(int amount, String reason) async {
     if (user == null) return;
     final g = Map<String, dynamic>.from(user!.gamification);
+    final oldLevel = g['level'] as int? ?? 1;
     g['xp'] = (g['xp'] as int? ?? 0) + amount;
     g['level'] = ((g['xp'] as int) / 100).floor() + 1;
+    final newLevel = g['level'] as int;
+    if (newLevel > oldLevel) pendingLevelUp = newLevel;
+    pendingXpToast = '+$amount XP · $reason';
     user!.gamification = g;
+    AchievementService.afterActivity(user!, reason: reason);
     if (userId != null) {
       await _saveUser(userId!);
       if (useFirebase) {
@@ -1121,6 +1624,34 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Spec alias - all food paths should call this or [logFood].
+  Future<String?> addFoodEntry({
+    required String name,
+    required int calories,
+    required int protein,
+    required int carbs,
+    required int fat,
+    String source = 'manual',
+    double? servingG,
+    String? photoUrl,
+    int? fiber,
+    int? sugar,
+    int? sodiumMg,
+  }) =>
+      logFood(
+        name: name,
+        calories: calories,
+        protein: protein,
+        carbs: carbs,
+        fat: fat,
+        source: source,
+        servingG: servingG,
+        photoUrl: photoUrl,
+        fiber: fiber,
+        sugar: sugar,
+        sodiumMg: sodiumMg,
+      );
+
   Future<String?> logFood({
     required String name,
     required int calories,
@@ -1129,13 +1660,24 @@ class AppState extends ChangeNotifier {
     required int fat,
     String source = 'manual',
     double? servingG,
+    String? photoUrl,
+    int? fiber,
+    int? sugar,
+    int? sodiumMg,
+    String? mealType,
+    bool? verified,
+    String? barcode,
   }) async {
     if (user == null || userId == null) return null;
+    await ensureDailyStateFresh(notify: false);
     final today = DateTime.now().toIso8601String().substring(0, 10);
-    user!.dailyMacrosLogged.calories += calories;
-    user!.dailyMacrosLogged.protein += protein;
-    user!.dailyMacrosLogged.carbs += carbs;
-    user!.dailyMacrosLogged.fat += fat;
+    final micros = MacroHelpers.resolveMicros(
+      carbs: carbs,
+      fiber: fiber,
+      sugar: sugar,
+      sodiumMg: sodiumMg,
+    );
+    final slot = mealType ?? MealTypeHelper.infer();
     final entry = <String, dynamic>{
       'date': today,
       'food': name,
@@ -1143,27 +1685,126 @@ class AppState extends ChangeNotifier {
       'protein': protein,
       'carbs': carbs,
       'fat': fat,
+      'fiber': micros.fiber,
+      'sugar': micros.sugar,
+      'sodium_mg': micros.sodiumMg,
       'source': source,
+      'meal_type': slot,
+      'verified': verified ?? (source == 'barcode' || source == 'open_food_facts'),
       if (servingG != null) 'serving_g': servingG,
+      if (photoUrl != null) 'photoUrl': photoUrl,
+      if (barcode != null) 'barcode': barcode,
     };
     if (useFirebase) {
       final entryId = await FirebaseService.createFoodEntry(userId!, entry);
       entry['id'] = entryId;
       await _refreshTodayFoodEntries();
+      _reconcileTodayNutritionFromEntries();
+    } else {
+      user!.foodLog.add(entry);
+      _reconcileTodayNutritionFromEntries();
     }
-    user!.foodLog.add(entry);
     foodLogPulseTick++;
+    HapticFeedback.lightImpact();
+    _recordDailyActivity();
+    _maybeSetFreshFunFact(FunFactsService.eventFact(user: user!, event: 'food_log'));
     await awardXp(XpRewards.logFood, 'Log food');
     await _saveUser(userId!);
     notifyListeners();
-    return '✓ $name logged — ${user!.dailyMacrosLogged.calories} kcal today';
+    return '✓ $name logged - ${user!.dailyMacrosLogged.calories} kcal today';
+  }
+
+  /// Removes a food entry logged today and reverts its macros/micros.
+  /// Pass the exact map stored in [UserData.foodLog].
+  Future<bool> deleteFoodEntry(Map<String, dynamic> entry) async {
+    if (user == null || userId == null) return false;
+    final idx = user!.foodLog.indexOf(entry);
+    if (idx < 0) return false;
+    user!.foodLog.removeAt(idx);
+    if (useFirebase && entry['id'] is String) {
+      try {
+        await FirebaseService.deleteFoodEntry(userId!, entry['id'] as String);
+      } catch (_) {}
+      await _refreshTodayFoodEntries();
+    }
+    _reconcileTodayNutritionFromEntries();
+    HapticFeedback.lightImpact();
+    await _saveUser(userId!);
+    notifyListeners();
+    return true;
+  }
+
+  /// Undo helper for "just logged" toasts: removes the most recent entry.
+  Future<void> undoLastFoodLog() async {
+    if (user == null || user!.foodLog.isEmpty) return;
+    await deleteFoodEntry(user!.foodLog.last);
+  }
+
+  Future<bool> updateFoodEntry(
+    Map<String, dynamic> entry, {
+    required int calories,
+    required int protein,
+    required int carbs,
+    required int fat,
+    int fiber = 0,
+    int sugar = 0,
+    int sodiumMg = 0,
+    double? servingG,
+    String? mealType,
+  }) async {
+    if (user == null || userId == null) return false;
+    final idx = user!.foodLog.indexOf(entry);
+    if (idx < 0) return false;
+
+    final micros = MacroHelpers.resolveMicros(
+      carbs: carbs,
+      fiber: fiber,
+      sugar: sugar,
+      sodiumMg: sodiumMg,
+    );
+
+    entry['calories'] = calories;
+    entry['protein'] = protein;
+    entry['carbs'] = carbs;
+    entry['fat'] = fat;
+    entry['fiber'] = micros.fiber;
+    entry['sugar'] = micros.sugar;
+    entry['sodium_mg'] = micros.sodiumMg;
+    if (servingG != null) entry['serving_g'] = servingG;
+    if (mealType != null) entry['meal_type'] = mealType;
+
+    if (useFirebase && entry['id'] is String) {
+      try {
+        await FirebaseService.updateFoodEntry(userId!, entry['id'] as String, entry);
+      } catch (_) {}
+      await _refreshTodayFoodEntries();
+    }
+    _reconcileTodayNutritionFromEntries();
+    await _saveUser(userId!);
+    notifyListeners();
+    return true;
   }
 
   Future<void> logWater(int ml) async {
     if (user == null || userId == null) return;
-    user!.water = ml.toDouble();
-    await _saveUser(userId!);
+    await ensureDailyStateFresh(notify: false);
+    user!.water += ml;
     notifyListeners();
+    await _saveUser(userId!);
+  }
+
+  void showWaterSheet(BuildContext context) => showWaterLoggerSheet(context);
+
+  void _syncDayCalorieTargets() {
+    if (user == null) return;
+    final training = user!.weeklyPlan.macros['calories'] ?? user!.tdee;
+    final split = TdeeService.splitDayTargets(
+      trainingDayCalories: training,
+      baseMacros: user!.weeklyPlan.macros,
+      goal: user!.goal.isEmpty ? 'maintain' : user!.goal,
+    );
+    user!.trainingDayCalories = split.training;
+    user!.restDayCalories = split.rest;
   }
 
   Future<void> _recalculateTdeeIfNeeded({bool showBanner = true}) async {
@@ -1178,9 +1819,210 @@ class AppState extends ChangeNotifier {
       shoppingList: user!.weeklyPlan.shoppingList,
       deliveryOptions: user!.weeklyPlan.deliveryOptions,
     );
+    _syncDayCalorieTargets();
     if (showBanner && (result.plan.target - oldTarget).abs() > 50) {
       pendingTdeeUpdate = PendingTdeeUpdate(oldTarget: oldTarget, newTarget: result.plan.target);
     }
+  }
+
+  Future<void> setTodayEnergyLevel(int level) async {
+    await setMorningCheckin(energyLevel: level);
+  }
+
+  Future<void> setMorningCheckin({required int energyLevel, double? sleepHours}) async {
+    if (user == null || userId == null) return;
+    todayEnergyLevel = energyLevel.clamp(1, 4);
+    if (sleepHours != null) lastNightSleepHours = sleepHours.clamp(0, 12);
+    final today = _todayKey();
+    _morningCheckinDate = today;
+    notifyListeners();
+    if (useFirebase) {
+      await FirebaseService.saveDailyCheckin(userId!, today, {
+        'energyLevel': todayEnergyLevel,
+        'sleepHours': lastNightSleepHours,
+      });
+    }
+  }
+
+  Future<void> applyRecoveryAdjustment({required bool keepOriginal, bool lighter = true}) async {
+    if (user == null || userId == null || todayWorkoutDay == null) return;
+    if (keepOriginal) {
+      workoutAdjustment = 'none';
+      notifyListeners();
+      return;
+    }
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    final today = days[DateTime.now().weekday % 7];
+    final result = RecoveryAdjustmentService.apply(
+      plan: user!.weeklyPlan,
+      choice: lighter ? RecoveryChoice.lighter : RecoveryChoice.heavier,
+      todayDay: today,
+    );
+    user!.weeklyPlan = WeeklyPlan(
+      macros: user!.weeklyPlan.macros,
+      workouts: result.adjustedWorkouts,
+      meals: user!.weeklyPlan.meals,
+      shoppingList: user!.weeklyPlan.shoppingList,
+      deliveryOptions: user!.weeklyPlan.deliveryOptions,
+    );
+    todayActivity.workoutStatus = result.status;
+    workoutAdjustment = result.adjustment;
+    notifyListeners();
+    await _saveUser(userId!);
+  }
+
+  Future<void> setWeeklyGoal({
+    required GoalType type,
+    required double targetValue,
+    required int targetDays,
+    String createdBy = 'user',
+  }) async {
+    if (userId == null) return;
+    final active = activeGoals.where((g) => g.isActive).length;
+    if (active >= 2) {
+      activeGoals = activeGoals.map((g) => g.copyWith(isActive: false)).toList();
+    }
+    final goal = WeeklyGoal(
+      id: 'goal_${DateTime.now().millisecondsSinceEpoch}',
+      type: type,
+      targetValue: targetValue,
+      targetDays: targetDays,
+      weekStart: WeeklyGoal.fromJson('x', {'weekStart': DateTime.now().toIso8601String()}).weekStart,
+      createdBy: createdBy,
+    );
+    activeGoals = [...activeGoals.where((g) => g.isActive), goal];
+    user!.weeklyGoals = List.from(activeGoals);
+    notifyListeners();
+    if (useFirebase) await FirebaseService.saveWeeklyGoal(userId!, goal);
+    else await _saveUser(userId!);
+  }
+
+  Future<void> checkWeeklyGoals() async {
+    if (user == null || activeGoals.isEmpty) return;
+    final yesterday = DateTime.now().subtract(const Duration(days: 1)).toIso8601String().substring(0, 10);
+    final gamification = Map<String, dynamic>.from(user!.gamification);
+    if (gamification['weeklyGoalLastEvalDate'] == yesterday) return;
+
+    final yLog = _dailyLogForDate(yesterday);
+    var changed = false;
+    activeGoals = activeGoals.map((g) {
+      if (!g.isActive) return g;
+      final met = _goalMetForDay(g, yLog, dayKey: yesterday);
+      if (met && g.daysAchieved < g.targetDays) {
+        changed = true;
+        return g.copyWith(daysAchieved: g.daysAchieved + 1);
+      }
+      return g;
+    }).toList();
+
+    gamification['weeklyGoalLastEvalDate'] = yesterday;
+    user!.gamification = gamification;
+    user!.weeklyGoals = List.from(activeGoals);
+    if (userId != null) await _saveUser(userId!);
+
+    if (changed) {
+      notifyListeners();
+      if (useFirebase && userId != null) {
+        for (final g in activeGoals.where((g) => g.isActive)) {
+          await FirebaseService.saveWeeklyGoal(userId!, g);
+        }
+      }
+    }
+  }
+
+  /// Sunday / week rollover - award XP and offer feed share when goals are met.
+  Future<void> evaluateEndedWeeklyGoals() async {
+    if (user == null || activeGoals.isEmpty) return;
+    final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    var changed = false;
+    final next = <WeeklyGoal>[];
+
+    for (final g in activeGoals) {
+      if (!g.isActive) {
+        next.add(g);
+        continue;
+      }
+      final weekEnd = g.weekStart.add(const Duration(days: 7));
+      if (today.isBefore(weekEnd)) {
+        next.add(g);
+        continue;
+      }
+      changed = true;
+      if (g.daysAchieved >= g.targetDays) {
+        await awardXp(XpRewards.weeklyGoalCrushed, 'Weekly goal crushed');
+        pendingGoalCelebration = PendingGoalCelebration(
+          goalLabel: g.label,
+          daysAchieved: g.daysAchieved,
+          targetDays: g.targetDays,
+        );
+      }
+      final closed = g.copyWith(isActive: false);
+      next.add(closed);
+      if (useFirebase && userId != null) {
+        await FirebaseService.saveWeeklyGoal(userId!, closed);
+      }
+    }
+
+    if (changed) {
+      activeGoals = next;
+      user!.weeklyGoals = List.from(next);
+      if (userId != null) await _saveUser(userId!);
+      notifyListeners();
+    }
+  }
+
+  bool _wasActiveOnDate(String date) {
+    if (user == null) return false;
+    final last = user!.gamification['lastActiveDate'] as String?;
+    if (last == date) return true;
+    final log = _dailyLogForDate(date);
+    if (log == null) return false;
+    return ((log['calories_logged'] as num?)?.toInt() ?? 0) > 0 ||
+        log['workout_status'] == 'completed' ||
+        log['workout_status'] == 'modified';
+  }
+
+  bool _weightMetOnDate(double target, String date) {
+    if (user == null) return false;
+    final entry = user!.weightHistory.cast<Map<String, dynamic>?>().firstWhere(
+          (w) => w?['date'] == date,
+          orElse: () => null,
+        );
+    if (entry != null) return (entry['weight'] as num).toDouble() <= target;
+    return user!.weight <= target;
+  }
+
+  bool _goalMetForDay(WeeklyGoal g, Map<String, dynamic>? log, {required String dayKey}) {
+    if (user == null) return false;
+    return switch (g.type) {
+      GoalType.protein =>
+        log != null && ((log['protein_logged'] as num?)?.toInt() ?? 0) >= g.targetValue,
+      GoalType.calories =>
+        log != null && ((log['calories_logged'] as num?)?.toInt() ?? 0) <= g.targetValue,
+      GoalType.workouts => log != null && log['workout_status'] == 'completed',
+      GoalType.water =>
+        log != null && ((log['water_ml'] as num?)?.toDouble() ?? 0) >= g.targetValue * 1000,
+      GoalType.steps =>
+        ((log != null ? (log['steps'] as num?)?.toDouble() : null) ?? user!.steps) >= g.targetValue,
+      GoalType.streak => _wasActiveOnDate(dayKey) &&
+          (user!.gamification['streak'] as int? ?? 0) >= g.targetValue,
+      GoalType.weight => _weightMetOnDate(g.targetValue, dayKey),
+    };
+  }
+
+  Future<void> _loadTodayCheckin() async {
+    if (!useFirebase || userId == null) return;
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final data = await FirebaseService.fetchDailyCheckin(userId!, today);
+    if (data != null) {
+      todayEnergyLevel = data['energyLevel'] as int? ?? 0;
+      lastNightSleepHours = (data['sleepHours'] as num?)?.toDouble() ?? 0;
+      _morningCheckinDate = today;
+    }
+  }
+
+  void startRestTimer({required int seconds, String? exerciseName}) {
+    // Rest timer lives in RestTimerController - see main.dart provider.
   }
 
   Future<String?> logWeight(double kg, {DateTime? date}) async {
@@ -1194,6 +2036,7 @@ class AppState extends ChangeNotifier {
       user!.weight = kg;
       await _recalculateTdeeIfNeeded();
     }
+    HapticFeedback.lightImpact();
     await awardXp(XpRewards.logWeight, 'Log weight');
     await _saveUser(userId!);
     notifyListeners();
@@ -1201,7 +2044,7 @@ class AppState extends ChangeNotifier {
     final label = updated
         ? (today ? "Updated today's weight" : 'Updated weigh-in')
         : (today ? 'Weight logged' : 'Past weigh-in logged');
-    return '✓ $label — ${kg.toStringAsFixed(1)} kg';
+    return '✓ $label - ${kg.toStringAsFixed(1)} kg';
   }
 
   Future<String?> logPersonalRecord({
@@ -1247,6 +2090,7 @@ class AppState extends ChangeNotifier {
     if (awardXpOnSave) {
       await awardXp(isNew ? XpRewards.prDetected : XpRewards.logPrManual, isNew ? 'New PR' : 'Log PR');
     }
+    if (isNew) HapticFeedback.heavyImpact();
     if (checkForCelebration && isNew) {
       pendingPrCelebration = PendingPrCelebration(
         exercise: exerciseName,
@@ -1258,13 +2102,15 @@ class AppState extends ChangeNotifier {
     }
     await _saveUser(userId!);
     notifyListeners();
-    return '✓ PR saved — ${record['exercise']} ${PersonalRecordHelper.formatValue(value, unit)}';
+    return '✓ PR saved - ${record['exercise']} ${PersonalRecordHelper.formatValue(value, unit)}';
   }
 
   Future<String?> completeTodayWorkout({
     required List<LoggedExercise> exercises,
     required int durationMinutes,
     String? workoutName,
+    Map<String, List<SetLog>>? detailedSets,
+    Map<String, SessionLog>? previousSessions,
   }) async {
     if (user == null || userId == null) return null;
     final name = workoutName ?? todayWorkoutDay?.focus ?? 'Workout';
@@ -1320,13 +2166,63 @@ class AppState extends ChangeNotifier {
       }
     }
 
+    for (final ex in exercises) {
+      final sets = detailedSets?[ex.name];
+      final previous = previousSessions?[ex.name];
+      final currentSets = sets ??
+          List.generate(
+            ex.sets,
+            (_) => SetLog(reps: ex.reps, weightKg: ex.weightKg, targetReps: ex.reps),
+          );
+      final suggestion = ProgressiveOverloadService.suggestNext(
+        exerciseId: ex.name.toLowerCase().replaceAll(' ', '_'),
+        exerciseName: ex.name,
+        previous: previous,
+        current: SessionLog(date: today, sets: currentSets),
+        prHit: PersonalRecordHelper.isNewBest(
+          user!.personalRecords,
+          exercise: ex.name,
+          value: ex.weightKg ?? 0,
+          unit: 'kg',
+        ),
+      );
+      if (suggestion != null) {
+        recentProgressions.insert(0, suggestion);
+        user!.nextSessionTargets[ex.name] = suggestion.suggestedWeightKg;
+      }
+      final vol = currentSets.fold<double>(0, (s, set) => s + (set.weightKg ?? 0) * set.reps);
+      if (vol > 0) {
+        final key = ex.name.toLowerCase().contains('leg') || ex.name.toLowerCase().contains('squat')
+            ? 'Legs'
+            : ex.name.toLowerCase().contains('row') || ex.name.toLowerCase().contains('pull')
+                ? 'Pull'
+                : 'Push';
+        weeklyVolume[key] = (weeklyVolume[key] ?? 0) + vol;
+      }
+      if (useFirebase && userId != null) {
+        final exId = AppState.exerciseId(ex.name);
+        final setPayload = currentSets.map((s) => {'reps': s.reps, 'weight': s.weightKg ?? 0}).toList();
+        await FirebaseService.saveExerciseSession(userId!, exId, {
+          'date': today,
+          'sets': setPayload,
+          'volume': vol,
+        });
+        _exerciseHistoryCache[exId] = SessionLog(date: today, sets: currentSets);
+      }
+    }
+    recentProgressions = recentProgressions.take(10).toList();
+    _rebuildWeeklyVolumeFromLogs();
+
+    HapticFeedback.mediumImpact();
+    _recordDailyActivity();
+    _maybeSetFreshFunFact(FunFactsService.eventFact(user: user!, event: 'workout_complete'));
     await awardXp(XpRewards.workoutComplete, 'Workout complete');
     final g = Map<String, dynamic>.from(user!.gamification);
     g['streak'] = (g['streak'] as int? ?? 0) + 1;
     user!.gamification = g;
     await _saveUser(userId!);
     notifyListeners();
-    return '✓ $name complete — ${burned.round()} kcal burned (+${XpRewards.workoutComplete} XP)';
+    return '✓ $name complete - ${burned.round()} kcal burned (+${XpRewards.workoutComplete} XP)';
   }
 
   Future<String?> logCustomWorkout({
@@ -1364,7 +2260,7 @@ class AppState extends ChangeNotifier {
     await awardXp(XpRewards.customWorkoutLogged, 'Custom workout');
     await _saveUser(userId!);
     notifyListeners();
-    return '✓ Logged custom workout — ${burned.round()} kcal burned';
+    return '✓ Logged custom workout - ${burned.round()} kcal burned';
   }
 
   Future<String?> skipTodayWorkout({String? reason}) async {
@@ -1442,9 +2338,11 @@ class AppState extends ChangeNotifier {
 
   Future<void> decrementFreeMessage() async {
     if (user == null) return;
+    user!.resetFreeMessagesIfNewDay();
     final g = Map<String, dynamic>.from(user!.gamification);
     final remaining = (g['freeMessagesRemaining'] as int? ?? 10) - 1;
     g['freeMessagesRemaining'] = remaining.clamp(0, 10);
+    g['freeMessagesDate'] = DateTime.now().toIso8601String().substring(0, 10);
     user!.gamification = g;
     if (userId != null) await _saveUser(userId!);
   }
@@ -1452,6 +2350,7 @@ class AppState extends ChangeNotifier {
   Future<void> refreshDailyLogsHistory() async {
     if (!useFirebase || userId == null) return;
     dailyLogsHistory = await FirebaseService.fetchDailyLogsRange(userId!, 30);
+    _rebuildWeeklyVolumeFromLogs();
     notifyListeners();
   }
 

@@ -17,6 +17,7 @@ class PasswordStrengthMeter extends StatelessWidget {
     if (password.isEmpty) return const SizedBox.shrink();
 
     final t = context.appTheme;
+    final c = context.appColors;
     final req = PasswordRequirements.evaluate(password);
     final strength = AuthValidator.passwordStrength(password);
     final strengthLabel = switch (strength) {
@@ -25,9 +26,9 @@ class PasswordStrengthMeter extends StatelessWidget {
       PasswordStrength.strong => 'Strong',
     };
     final strengthColor = switch (strength) {
-      PasswordStrength.weak => Colors.redAccent,
-      PasswordStrength.fair => AppColors.orange,
-      PasswordStrength.strong => AppColors.emerald,
+      PasswordStrength.weak => c.error,
+      PasswordStrength.fair => c.sand,
+      PasswordStrength.strong => c.mint,
     };
     final fill = switch (strength) {
       PasswordStrength.weak => 0.33,
@@ -80,6 +81,7 @@ class _RequirementRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.appTheme;
+    final c = context.appColors;
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(
@@ -87,7 +89,7 @@ class _RequirementRow extends StatelessWidget {
           Icon(
             met ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
             size: 16,
-            color: met ? AppColors.emerald : t.textMuted,
+            color: met ? c.mint : t.textMuted,
           ),
           const SizedBox(width: 8),
           Expanded(

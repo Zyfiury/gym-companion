@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/workout_session.dart';
 import '../providers/app_state.dart';
 import '../services/activity_calorie_service.dart';
+import '../core/widgets/app_toast.dart';
 import '../theme/app_theme.dart';
 import '../utils/exercise_parser.dart';
 import '../utils/sheet_padding.dart';
+import '../features/workout/plate_calculator_sheet.dart';
+import '../features/workout/rest_timer_widget.dart';
 
 Future<void> showWorkoutCompleteSheet(BuildContext context, List<String> exerciseStrings) async {
   final parsed = ExerciseParser.parseAll(exerciseStrings);
@@ -48,7 +52,23 @@ Future<void> showWorkoutCompleteSheet(BuildContext context, List<String> exercis
                             const SizedBox(width: 8),
                             Expanded(child: TextField(controller: row.reps, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Reps'))),
                             const SizedBox(width: 8),
-                            Expanded(child: TextField(controller: row.weight, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'kg'))),
+                            Expanded(
+                              child: TextField(
+                                controller: row.weight,
+                                keyboardType: TextInputType.number,
+                                decoration: InputDecoration(
+                                  labelText: 'kg',
+                                  suffixIcon: IconButton(
+                                    icon: const Icon(Icons.fitness_center, size: 20),
+                                    tooltip: 'Plate calculator',
+                                    onPressed: () => showPlateCalculatorSheet(
+                                      ctx,
+                                      initialWeightKg: double.tryParse(row.weight.text),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ],
@@ -66,7 +86,7 @@ Future<void> showWorkoutCompleteSheet(BuildContext context, List<String> exercis
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  style: FilledButton.styleFrom(backgroundColor: AppColors.accent),
+                  style: FilledButton.styleFrom(backgroundColor: ctx.appColors.primary),
                   onPressed: () async {
                     final exercises = controllers.map((row) {
                       final met = ActivityCalorieService.metForExercise(row.name);
@@ -78,15 +98,20 @@ Future<void> showWorkoutCompleteSheet(BuildContext context, List<String> exercis
                         met: met,
                       );
                     }).toList();
-                    final msg = await ctx.read<AppState>().completeTodayWorkout(
+                    final user = ctx.read<AppState>().user;
+                    final restSec = user?.exerciseRestSeconds[exercises.first.name] ??
+                        user?.exerciseRestSeconds['_default'] ??
+                        90;
+                    ctx.read<RestTimerController>().start(seconds: restSec, exerciseName: exercises.first.name);
+                    HapticFeedback.mediumImpact();
+                    await ctx.read<AppState>().completeTodayWorkout(
                           exercises: exercises,
                           durationMinutes: duration.round(),
                         );
-                    if (ctx.mounted) {
-                      Navigator.pop(ctx);
-                      if (msg != null) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-                      }
+                    if (!ctx.mounted) return;
+                    Navigator.pop(ctx);
+                    if (context.mounted) {
+                      AppToast.success(context, 'Session complete ✓', haptic: HapticFeedbackType.medium);
                     }
                   },
                   child: const Text('Mark as Complete'),

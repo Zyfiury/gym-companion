@@ -13,7 +13,7 @@ class ExerciseVideo {
   ExerciseVideo({required this.videoId, required this.title, required this.thumbnail});
 }
 
-/// YouTube Data API — exercise and recipe videos with local cache.
+/// YouTube Data API - exercise and recipe videos with local cache.
 class YouTubeService {
   static const _exerciseCacheKey = 'youtube_video_cache_v1';
   static const _recipeCacheKey = 'youtube_recipe_cache_v1';

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../providers/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/delivery_actions.dart';
 
@@ -19,6 +21,8 @@ class DeliveryOptionTile extends StatelessWidget {
     final distLabel = dist is num ? ' · ${dist.toStringAsFixed(1)} km' : '';
     final isEatOut = option['isEatOut'] == true;
     final actionUrl = primaryActionUrl(option);
+    final state = context.watch<AppState>();
+    final isFav = state.isFavouriteDelivery(option);
 
     return Material(
       color: t.elevated,
@@ -50,15 +54,28 @@ class DeliveryOptionTile extends StatelessWidget {
                       size: 16,
                       color: t.textMuted,
                     ),
+                  const SizedBox(width: 4),
+                  InkWell(
+                    onTap: () => context.read<AppState>().toggleFavouriteDelivery(option),
+                    borderRadius: BorderRadius.circular(14),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(
+                        isFav ? Icons.favorite : Icons.favorite_border,
+                        size: 18,
+                        color: isFav ? context.appColors.primary : t.textMuted,
+                      ),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 4),
               Text(
                 estimated
-                    ? 'Suggested: $dish — $macros (est.)$distLabel'
+                    ? 'Suggested: $dish - $macros (est.)$distLabel'
                     : source != null
-                        ? '$dish — $macros ($source)$distLabel'
-                        : '$dish — $macros$distLabel',
+                        ? '$dish - $macros ($source)$distLabel'
+                        : '$dish - $macros$distLabel',
                 style: TextStyle(fontSize: 12, color: t.textSecondary, height: 1.35),
               ),
               const SizedBox(height: 10),
@@ -114,11 +131,11 @@ class _ActionChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ActionChip(
-      avatar: icon != null ? Icon(icon, size: 14, color: AppColors.accent) : null,
+      avatar: icon != null ? Icon(icon, size: 14, color: context.appColors.primary) : null,
       label: Text(label, style: const TextStyle(fontSize: 11)),
       visualDensity: VisualDensity.compact,
-      backgroundColor: AppColors.accent.withValues(alpha: 0.12),
-      labelStyle: const TextStyle(color: AppColors.accent),
+      backgroundColor: context.appColors.primary.withValues(alpha: 0.12),
+      labelStyle: TextStyle(color: context.appColors.primary),
       onPressed: onTap,
     );
   }

@@ -50,7 +50,7 @@ class ProfilePillTabs extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       decoration: BoxDecoration(
                         color: active
-                            ? (context.isDarkTheme ? AppColors.surfaceElevated : Colors.white)
+                            ? context.appColors.surface
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(10),
                         boxShadow: active && !context.isDarkTheme

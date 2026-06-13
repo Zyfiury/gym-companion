@@ -14,11 +14,15 @@ class ProfileHealthTab extends StatelessWidget {
   final bool pregnant;
   final bool tracksPeriod;
   final String? periodPhase;
+  final double barWeightKg;
+  final int defaultRestSeconds;
   final ValueChanged<String> onGenderChanged;
   final ValueChanged<Set<String>> onDisabilitiesChanged;
   final ValueChanged<bool> onPregnantChanged;
   final ValueChanged<bool> onTracksPeriodChanged;
   final ValueChanged<String?> onPeriodPhaseChanged;
+  final ValueChanged<double> onBarWeightChanged;
+  final ValueChanged<int> onRestSecondsChanged;
   final VoidCallback onSave;
 
   const ProfileHealthTab({
@@ -28,11 +32,15 @@ class ProfileHealthTab extends StatelessWidget {
     required this.pregnant,
     required this.tracksPeriod,
     required this.periodPhase,
+    required this.barWeightKg,
+    required this.defaultRestSeconds,
     required this.onGenderChanged,
     required this.onDisabilitiesChanged,
     required this.onPregnantChanged,
     required this.onTracksPeriodChanged,
     required this.onPeriodPhaseChanged,
+    required this.onBarWeightChanged,
+    required this.onRestSecondsChanged,
     required this.onSave,
   });
 
@@ -107,6 +115,46 @@ class ProfileHealthTab extends StatelessWidget {
               const SizedBox(height: 14),
               StaggeredEntry(
                 index: 2,
+                child: ProfileGlassCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Workout equipment', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: t.textPrimary)),
+                      const SizedBox(height: 12),
+                      SectionLabel('Bar weight'),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          ChoiceChip(
+                            label: const Text('20 kg Olympic'),
+                            selected: barWeightKg == 20,
+                            onSelected: (_) => onBarWeightChanged(20),
+                          ),
+                          ChoiceChip(
+                            label: const Text("15 kg Women's"),
+                            selected: barWeightKg == 15,
+                            onSelected: (_) => onBarWeightChanged(15),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      SectionLabel('Default rest between sets'),
+                      Slider(
+                        value: defaultRestSeconds.toDouble(),
+                        min: 60,
+                        max: 240,
+                        divisions: 6,
+                        label: '${defaultRestSeconds}s',
+                        onChanged: (v) => onRestSecondsChanged(v.round()),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              StaggeredEntry(
+                index: 3,
                 child: ProfileGlassCard(
                   child: Column(
                     children: [

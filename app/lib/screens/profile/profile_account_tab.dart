@@ -6,6 +6,7 @@ import '../../models/user_data.dart';
 import '../../providers/app_state.dart';
 import '../../services/export_service.dart';
 import '../../services/subscription_service.dart';
+import '../../core/widgets/app_toast.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/sheet_padding.dart';
 import '../../utils/pro_gate.dart';
@@ -51,7 +52,7 @@ class ProfileAccountTab extends StatelessWidget {
     if (confirmed != true || !context.mounted) return;
     await context.read<AppState>().deleteAccount();
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Account deleted')));
+    AppToast.success(context, 'Account deleted');
   }
 
   @override
@@ -111,10 +112,10 @@ class ProfileAccountTab extends StatelessWidget {
                 ProfileSettingsRow(
                   semanticsId: 'profile-pro-upgrade',
                   icon: Icons.star_rounded,
-                  iconColor: AppColors.ember,
+                  iconColor: context.appColors.sand,
                   title: 'Gym Companion Pro',
                   subtitle: AppConfig.proMonthlyPrice,
-                  onTap: () => pushPremium(context, const PaywallScreen()),
+                  onTap: () => pushModal(context, const PaywallScreen()),
                 ),
                 Divider(height: 1, color: t.borderSubtle.withValues(alpha: 0.5)),
                 ProfileSettingsRow(
@@ -124,9 +125,11 @@ class ProfileAccountTab extends StatelessWidget {
                   onTap: () async {
                     final ok = await SubscriptionService.restorePurchases();
                     if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(ok ? 'Pro restored ✓' : 'No active subscription found')),
-                    );
+                    if (ok) {
+                      AppToast.success(context, 'Pro restored ✓');
+                    } else {
+                      AppToast.error(context, 'No active subscription found');
+                    }
                   },
                 ),
                 Divider(height: 1, color: t.borderSubtle.withValues(alpha: 0.5)),

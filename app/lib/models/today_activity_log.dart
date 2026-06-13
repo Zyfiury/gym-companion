@@ -1,7 +1,7 @@
 import 'workout_session.dart';
 import 'workout_status.dart';
 
-/// Today's activity snapshot — synced to daily_logs/{date} in Firestore.
+/// Today's activity snapshot - synced to daily_logs/{date} in Firestore.
 class TodayActivityLog {
   double stepCalories;
   double workoutCalories;

@@ -4,8 +4,12 @@ import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 import '../providers/app_state.dart';
 import '../services/allergy_guard.dart';
+import '../core/widgets/app_toast.dart';
+import '../core/widgets/nutrition_source_badge.dart';
 import '../theme/app_theme.dart';
+import '../utils/meal_type_helper.dart';
 import '../utils/sheet_padding.dart';
+import 'inline_loading.dart';
 
 class BarcodeConfirmSheet extends StatefulWidget {
   final Map<String, dynamic> product;
@@ -31,10 +35,12 @@ class _BarcodeConfirmSheetState extends State<BarcodeConfirmSheet> {
   bool _logging = false;
   bool _acknowledgedAllergy = false;
   late GuardResult _guard;
+  late String _mealType;
 
   @override
   void initState() {
     super.initState();
+    _mealType = MealTypeHelper.infer();
     final user = context.read<AppState>().user!;
     final prefs = UserAllergies.fromUser(user);
     final name = widget.product['name'] as String? ?? '';
@@ -61,8 +67,16 @@ class _BarcodeConfirmSheetState extends State<BarcodeConfirmSheet> {
       'protein': ((widget.product['protein'] as num) * f).round(),
       'carbs': ((widget.product['carbs'] as num) * f).round(),
       'fat': ((widget.product['fat'] as num) * f).round(),
+      'fiber': (((widget.product['fiber'] as num?) ?? 0) * f).round(),
+      'sugar': (((widget.product['sugar'] as num?) ?? 0) * f).round(),
+      'sodiumMg': (((widget.product['sodiumMg'] as num?) ?? 0) * f).round(),
     };
   }
+
+  bool get _hasMicros =>
+      ((widget.product['fiber'] as num?) ?? 0) > 0 ||
+      ((widget.product['sugar'] as num?) ?? 0) > 0 ||
+      ((widget.product['sodiumMg'] as num?) ?? 0) > 0;
 
   bool get _canLog => _guard.isSafe || _acknowledgedAllergy;
 
@@ -75,6 +89,7 @@ class _BarcodeConfirmSheetState extends State<BarcodeConfirmSheet> {
   @override
   Widget build(BuildContext context) {
     final t = context.appTheme;
+    final c = context.appColors;
     final m = _macros;
     final imageUrl = widget.product['imageUrl'] as String?;
 
@@ -92,12 +107,12 @@ class _BarcodeConfirmSheetState extends State<BarcodeConfirmSheet> {
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.12),
+                  color: c.errorDim,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.red.withValues(alpha: 0.35)),
+                  border: Border.all(color: c.error.withValues(alpha: 0.35)),
                 ),
                 child: Text(
-                  'Contains ${_guard.conflicts.join(', ')} — you marked this as an allergy',
+                  'Contains ${_guard.conflicts.join(', ')} - you marked this as an allergy',
                   style: TextStyle(color: t.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
                 ),
               ),
@@ -121,7 +136,7 @@ class _BarcodeConfirmSheetState extends State<BarcodeConfirmSheet> {
                 errorBuilder: (_, __, ___) => Container(
                   height: 120,
                   color: t.elevated,
-                  child: const Icon(Icons.fastfood, size: 48, color: AppColors.accent),
+                  child: Icon(Icons.fastfood, size: 48, color: c.primary),
                 ),
               ),
             )
@@ -129,33 +144,68 @@ class _BarcodeConfirmSheetState extends State<BarcodeConfirmSheet> {
             Container(
               height: 80,
               alignment: Alignment.center,
-              child: const Icon(Icons.fastfood, size: 48, color: AppColors.accent),
+              child: Icon(Icons.fastfood, size: 48, color: c.primary),
             ),
           const SizedBox(height: 12),
-          Text(widget.product['name'] as String? ?? 'Product', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: t.textPrimary)),
-          if ((widget.product['brand'] as String?)?.isNotEmpty == true)
-            Text(widget.product['brand'] as String, style: TextStyle(color: t.textSecondary, fontSize: 13)),
-          const SizedBox(height: 16),
           Row(
             children: [
-              _pill('${m['calories']} kcal', AppColors.orange),
-              const SizedBox(width: 6),
-              _pill('P ${m['protein']}g', AppColors.accent),
-              const SizedBox(width: 6),
-              _pill('C ${m['carbs']}g', AppColors.blue),
-              const SizedBox(width: 6),
-              _pill('F ${m['fat']}g', Colors.amber),
+              Expanded(
+                child: Text(widget.product['name'] as String? ?? 'Product', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: t.textPrimary)),
+              ),
+              NutritionSourceBadge(verified: widget.product['verified'] == true, compact: true),
             ],
           ),
+          if ((widget.product['brand'] as String?)?.isNotEmpty == true)
+            Text(widget.product['brand'] as String, style: TextStyle(color: t.textSecondary, fontSize: 13)),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            children: MealTypeHelper.slots.map((slot) {
+              return ChoiceChip(
+                label: Text(slot),
+                selected: _mealType == slot,
+                onSelected: (_) => setState(() => _mealType = slot),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _pill(context, '${m['calories']} kcal', c.sand),
+              const SizedBox(width: 6),
+              _pill(context, 'P ${m['protein']}g', c.macroProtein),
+              const SizedBox(width: 6),
+              _pill(context, 'C ${m['carbs']}g', c.macroCarbs),
+              const SizedBox(width: 6),
+              _pill(context, 'F ${m['fat']}g', c.macroFat),
+            ],
+          ),
+          if (_hasMicros) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Fibre ${m['fiber']}g · Sugar ${m['sugar']}g · Sodium ${m['sodiumMg']}mg',
+              style: TextStyle(fontSize: 12, color: t.textSecondary),
+            ),
+          ],
           const SizedBox(height: 16),
           Text('Serving size (g)', style: TextStyle(fontSize: 13, color: t.textSecondary)),
+          Wrap(
+            spacing: 8,
+            children: [50, 100, 150, 200].map((g) {
+              return ActionChip(
+                label: Text('${g}g'),
+                onPressed: () => setState(() => _grams = g.toDouble()),
+                backgroundColor: _grams.round() == g ? c.primary.withValues(alpha: 0.15) : null,
+              );
+            }).toList(),
+          ),
           Slider(
             value: _grams,
             min: 10,
             max: 500,
             divisions: 49,
             label: '${_grams.round()}g',
-            activeColor: AppColors.accent,
+            activeColor: c.primary,
             onChanged: (v) {
               setState(() => _grams = v);
               _debounce?.cancel();
@@ -170,7 +220,7 @@ class _BarcodeConfirmSheetState extends State<BarcodeConfirmSheet> {
               child: SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                  style: OutlinedButton.styleFrom(foregroundColor: c.error),
                   onPressed: () => setState(() => _acknowledgedAllergy = true),
                   child: const Text('Log anyway'),
                 ),
@@ -182,12 +232,13 @@ class _BarcodeConfirmSheetState extends State<BarcodeConfirmSheet> {
             child: SizedBox(
             width: double.infinity,
             child: FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: AppColors.accent, padding: const EdgeInsets.symmetric(vertical: 14)),
+              style: FilledButton.styleFrom(backgroundColor: c.primary, padding: const EdgeInsets.symmetric(vertical: 14)),
               onPressed: !_canLog || _logging
                   ? null
                   : () async {
                       setState(() => _logging = true);
-                      final chip = await context.read<AppState>().logFood(
+                      final state = context.read<AppState>();
+                      await state.logFood(
                             name: widget.product['name'] as String,
                             calories: m['calories']!,
                             protein: m['protein']!,
@@ -195,15 +246,24 @@ class _BarcodeConfirmSheetState extends State<BarcodeConfirmSheet> {
                             fat: m['fat']!,
                             source: 'barcode',
                             servingG: _grams,
+                            fiber: m['fiber'],
+                            sugar: m['sugar'],
+                            sodiumMg: m['sodiumMg'],
+                            mealType: _mealType,
+                            verified: widget.product['verified'] == true,
+                            barcode: widget.product['barcode'] as String?,
                           );
                       if (!mounted) return;
                       Navigator.pop(context);
-                      if (chip != null) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(chip)));
-                      }
+                      AppToast.success(
+                        context,
+                        'Meal logged ✓',
+                        actionLabel: 'Undo',
+                        onAction: () => state.undoLastFoodLog(),
+                      );
                     },
               child: _logging
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  ? const InlineLoading()
                   : Text(_guard.isSafe ? 'Log this food' : 'Confirm & log'),
             ),
           ),
@@ -214,7 +274,7 @@ class _BarcodeConfirmSheetState extends State<BarcodeConfirmSheet> {
     );
   }
 
-  Widget _pill(String text, Color color) {
+  Widget _pill(BuildContext context, String text, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(

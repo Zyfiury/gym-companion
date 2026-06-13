@@ -9,6 +9,9 @@ import '../services/places_service.dart';
 import '../services/shopping_list_service.dart';
 import '../services/store_service.dart';
 import '../services/youtube_service.dart';
+import '../core/widgets/app_toast.dart';
+import '../core/widgets/skeletons.dart';
+import '../core/widgets/tab_load_gate.dart';
 import '../theme/app_theme.dart';
 import '../utils/pro_gate.dart';
 import '../utils/sheet_padding.dart';
@@ -17,7 +20,11 @@ import '../widgets/meal_week_view.dart';
 import '../widgets/meals/nutrition_mode_panel.dart';
 import '../widgets/premium_ui.dart';
 import '../widgets/shimmer_skeleton.dart';
+import '../widgets/inline_loading.dart';
 import '../widgets/staggered_entry.dart';
+import '../features/logging/food_log_actions.dart';
+import '../features/logging/today_food_log.dart';
+import '../features/home/calorie_summary_card.dart';
 
 enum _PlanView { day, week, month }
 
@@ -32,6 +39,7 @@ class _MealsScreenState extends State<MealsScreen> {
   int openMeal = 0;
   _PlanView planView = _PlanView.day;
   bool shopOpen = false;
+  bool mealPlanOpen = false;
   String? _videoId;
   String? _videoThumb;
   bool _loadingVideo = false;
@@ -128,7 +136,7 @@ class _MealsScreenState extends State<MealsScreen> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
                 child: Text(
-                  'Any supermarket or grocery shop near you — not limited to big chains.',
+                  'Any supermarket or grocery shop near you - not limited to big chains.',
                   style: TextStyle(fontSize: 12, color: t.textSecondary, height: 1.35),
                 ),
               ),
@@ -144,7 +152,7 @@ class _MealsScreenState extends State<MealsScreen> {
                 return ListTile(
                   title: Text(name, style: TextStyle(color: t.textPrimary)),
                   subtitle: dist != null ? Text('${dist.toStringAsFixed(1)} km away', style: TextStyle(color: t.textMuted)) : null,
-                  trailing: _activeStore(context.read<AppState>()) == name ? const Icon(Icons.check, color: AppColors.accent) : null,
+                  trailing: _activeStore(context.read<AppState>()) == name ? Icon(Icons.check, color: context.appColors.primary) : null,
                   onTap: () => Navigator.pop(ctx, name),
                 );
               }),
@@ -188,28 +196,6 @@ class _MealsScreenState extends State<MealsScreen> {
     _loadVideo();
   }
 
-  String _periodKey() {
-    switch (planView) {
-      case _PlanView.day:
-        return 'day';
-      case _PlanView.week:
-        return 'week';
-      case _PlanView.month:
-        return 'month';
-    }
-  }
-
-  String _nutritionLabel() {
-    switch (planView) {
-      case _PlanView.day:
-        return 'Daily nutrition';
-      case _PlanView.week:
-        return 'Weekly average';
-      case _PlanView.month:
-        return 'Monthly average';
-    }
-  }
-
   Future<void> _confirmLogMeal(AppState state, Meal meal) async {
     final t = context.appTheme;
     final confirmed = await showModalBottomSheet<bool>(
@@ -232,7 +218,7 @@ class _MealsScreenState extends State<MealsScreen> {
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: AppColors.accent),
+                style: FilledButton.styleFrom(backgroundColor: context.appColors.primary),
                 onPressed: () => Navigator.pop(ctx, true),
                 child: const Text('Log meal'),
               ),
@@ -245,7 +231,7 @@ class _MealsScreenState extends State<MealsScreen> {
     if (confirmed != true || !mounted) return;
     final chip = await state.logMealFromPlan(meal);
     if (chip != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(chip)));
+      AppToast.success(context, 'Meal logged ✓');
     }
   }
 
@@ -299,9 +285,7 @@ class _MealsScreenState extends State<MealsScreen> {
         : await YouTubeService.getRecipeVideo(mealName);
     if (!mounted) return;
     if (video == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(YouTubeService.hasKey ? 'No recipe video found' : 'Add YOUTUBE_API_KEY for cooking videos')),
-      );
+      AppToast.error(context, YouTubeService.hasKey ? 'No recipe video found' : 'Add YOUTUBE_API_KEY for cooking videos');
       return;
     }
     final t = context.appTheme;
@@ -326,7 +310,7 @@ class _MealsScreenState extends State<MealsScreen> {
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                style: FilledButton.styleFrom(backgroundColor: AppColors.accent, padding: const EdgeInsets.symmetric(vertical: 14)),
+                style: FilledButton.styleFrom(backgroundColor: context.appColors.primary, padding: const EdgeInsets.symmetric(vertical: 14)),
                 onPressed: () => launchUrl(Uri.parse('https://youtube.com/watch?v=${video.videoId}'), mode: LaunchMode.externalApplication),
                 icon: const Icon(Icons.play_circle_outline),
                 label: const Text('Watch on YouTube'),
@@ -341,59 +325,87 @@ class _MealsScreenState extends State<MealsScreen> {
   @override
   Widget build(BuildContext context) {
     final t = context.appTheme;
+    final c = context.appColors;
     final state = context.watch<AppState>();
-    final plan = state.user!.weeklyPlan;
     final viewMeals = _mealsForView(state);
     final shoppingList = _shoppingForView(state);
-    final macros = plan.macros;
-    final logged = state.macrosForPeriod(_periodKey());
-    final nutritionLabel = _nutritionLabel();
     final current = viewMeals.isNotEmpty && openMeal < viewMeals.length ? viewMeals[openMeal] : null;
-    final calTarget = macros['calories'] ?? state.user!.tdee;
     final score = current != null ? MealVarietyService.nutritionScore(current.macros) : 0;
 
-    return AmbientBackground(
+    return TabLoadGate(
+      skeleton: ListView(
+        padding: tabListPadding(context),
+        children: const [
+          SkeletonCard(),
+          SizedBox(height: 14),
+          SkeletonMacroBar(),
+          SizedBox(height: 14),
+          SkeletonCard(height: 140),
+        ],
+      ),
+      child: AmbientBackground(
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        padding: tabListPadding(context),
         children: [
+          const StaggeredEntry(index: 0, child: CalorieSummaryCard()),
+          const SizedBox(height: 14),
+          const StaggeredEntry(index: 1, child: FoodLogActionsCard()),
+          const SizedBox(height: 14),
+          const StaggeredEntry(index: 2, child: TodayFoodLogCard()),
+          if (state.user!.foodLog.isNotEmpty) const SizedBox(height: 14),
           StaggeredEntry(
-            index: 0,
-            child: AppCard(
-              child: Row(
-                children: [
-                  MacroRing(
-                    progress: calTarget > 0 ? logged.calories / calTarget : 0,
-                    value: '${logged.calories}',
-                    label: 'kcal',
-                    sublabel: '/ $calTarget',
-                    color: AppColors.orange,
-                    size: 100,
-                  ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(nutritionLabel, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: t.textPrimary)),
-                        const SizedBox(height: 10),
-                        MacroBar(label: 'Protein', current: logged.protein, target: macros['protein'] ?? 140, color: AppColors.accent),
-                        const SizedBox(height: 8),
-                        MacroBar(label: 'Carbs', current: logged.carbs, target: macros['carbs'] ?? 200, color: AppColors.blue),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          StaggeredEntry(
-            index: 1,
+            index: 2,
             child: NutritionModePanel(user: state.user!),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 20),
+          StaggeredEntry(
+            index: 3,
+            child: AppCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  InkWell(
+                    onTap: () => setState(() => mealPlanOpen = !mealPlanOpen),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+                      child: Row(
+                        children: [
+                          Icon(Icons.restaurant_menu_outlined, size: 20, color: context.appColors.primary),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Meal plan', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: t.textPrimary)),
+                                Text(
+                                  current != null ? '${current.mealType} · ${current.name}' : 'Today\'s meals & shopping',
+                                  style: TextStyle(fontSize: 11.5, color: t.textSecondary),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          AnimatedRotation(
+                            turns: mealPlanOpen ? 0.5 : 0,
+                            duration: const Duration(milliseconds: 200),
+                            child: Icon(Icons.keyboard_arrow_down, color: t.textMuted),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (mealPlanOpen) ...[
+                    Divider(height: 1, color: t.borderSubtle),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
           if (planView == _PlanView.day)
             StaggeredEntry(
-              index: 2,
+              index: 3,
               child: Row(
                 children: [
                   Expanded(
@@ -427,7 +439,7 @@ class _MealsScreenState extends State<MealsScreen> {
             ),
           if (planView == _PlanView.day) const SizedBox(height: 12),
           StaggeredEntry(
-            index: 2,
+            index: 3,
             child: Semantics(
               identifier: 'food-plan-toggle',
               child: _PlanPeriodToggle(
@@ -448,7 +460,7 @@ class _MealsScreenState extends State<MealsScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
-                        color: AppColors.accent.withValues(alpha: 0.12),
+                        color: context.appColors.primary.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
@@ -456,10 +468,10 @@ class _MealsScreenState extends State<MealsScreen> {
                         children: [
                           Text(
                             '${shoppingList['supermarket']} · ${shoppingList['totalEstimatedCost'] ?? ''}',
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.accent),
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.appColors.primary),
                           ),
                           const SizedBox(width: 2),
-                          const Icon(Icons.arrow_drop_down, size: 16, color: AppColors.accent),
+                          Icon(Icons.arrow_drop_down, size: 16, color: context.appColors.primary),
                         ],
                       ),
                     ),
@@ -486,7 +498,7 @@ class _MealsScreenState extends State<MealsScreen> {
                     MealMonthChart(
                       dailyLogs: state.dailyLogsHistory,
                       onDayTap: (date) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Logged on $date')));
+                        AppToast.success(context, 'Meal logged ✓');
                       },
                     ),
                   ],
@@ -511,11 +523,11 @@ class _MealsScreenState extends State<MealsScreen> {
                       duration: const Duration(milliseconds: 200),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       decoration: BoxDecoration(
-                        color: selected ? AppColors.accent : t.elevated,
+                        color: selected ? c.primary : t.elevated,
                         borderRadius: BorderRadius.circular(22),
-                        border: Border.all(color: selected ? AppColors.accent : t.borderSubtle),
+                        border: Border.all(color: selected ? c.primary : t.borderSubtle),
                       ),
-                      child: Text(m.mealType, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: selected ? Colors.white : t.textSecondary)),
+                      child: Text(m.mealType, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: selected ? c.onPrimary : t.textSecondary)),
                     ),
                   );
                 },
@@ -556,8 +568,8 @@ class _MealsScreenState extends State<MealsScreen> {
                                         Center(
                                           child: Container(
                                             padding: const EdgeInsets.all(12),
-                                            decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.5), shape: BoxShape.circle),
-                                            child: const Icon(Icons.play_arrow, color: Colors.white, size: 32),
+                                            decoration: BoxDecoration(color: t.textPrimary.withValues(alpha: 0.5), shape: BoxShape.circle),
+                                            child: Icon(Icons.play_arrow, color: c.onPrimary, size: 32),
                                           ),
                                         ),
                                       ],
@@ -592,26 +604,26 @@ class _MealsScreenState extends State<MealsScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                 decoration: BoxDecoration(
-                                  color: AppColors.emerald.withValues(alpha: 0.12),
+                                  color: context.appColors.mint.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(20),
                                 ),
-                                child: Text('Score $score', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.emerald)),
+                                child: Text('Score $score', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.appColors.mint)),
                               ),
                               if (state.user!.isMealLogged(current.mealType)) ...[
                                 const SizedBox(width: 8),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                   decoration: BoxDecoration(
-                                    color: AppColors.emerald.withValues(alpha: 0.15),
+                                    color: context.appColors.mint.withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(color: AppColors.emerald.withValues(alpha: 0.3)),
+                                    border: Border.all(color: context.appColors.mint.withValues(alpha: 0.3)),
                                   ),
-                                  child: const Row(
+                                  child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.check_circle, size: 12, color: AppColors.emerald),
-                                      SizedBox(width: 4),
-                                      Text('Logged', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.emerald)),
+                                      Icon(Icons.check_circle, size: 12, color: context.appColors.mint),
+                                      const SizedBox(width: 4),
+                                      Text('Logged', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.appColors.mint)),
                                     ],
                                   ),
                                 ),
@@ -658,8 +670,8 @@ class _MealsScreenState extends State<MealsScreen> {
                                       Container(
                                         width: 22,
                                         height: 22,
-                                        decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6)),
-                                        child: Center(child: Text('${e.key + 1}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.accent))),
+                                        decoration: BoxDecoration(color: context.appColors.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6)),
+                                        child: Center(child: Text('${e.key + 1}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.appColors.primary))),
                                       ),
                                       const SizedBox(width: 10),
                                       Expanded(child: Text(e.value, style: TextStyle(fontSize: 14, color: t.textPrimary))),
@@ -672,7 +684,7 @@ class _MealsScreenState extends State<MealsScreen> {
                             SizedBox(
                               width: double.infinity,
                               child: FilledButton.icon(
-                                style: FilledButton.styleFrom(backgroundColor: AppColors.accent, padding: const EdgeInsets.symmetric(vertical: 14)),
+                                style: FilledButton.styleFrom(backgroundColor: context.appColors.primary, padding: const EdgeInsets.symmetric(vertical: 14)),
                                 onPressed: () => _confirmLogMeal(state, current),
                                 icon: const Icon(Icons.restaurant, size: 18),
                                 label: const Text('Log meal'),
@@ -681,7 +693,7 @@ class _MealsScreenState extends State<MealsScreen> {
                           SizedBox(
                             width: double.infinity,
                             child: OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(foregroundColor: AppColors.accent, side: BorderSide(color: t.borderSubtle)),
+                              style: OutlinedButton.styleFrom(foregroundColor: context.appColors.primary, side: BorderSide(color: t.borderSubtle)),
                               onPressed: () => _playRecipeVideo(current.name),
                               icon: const Icon(Icons.play_circle_outline, size: 18),
                               label: const Text('Watch full recipe'),
@@ -698,80 +710,86 @@ class _MealsScreenState extends State<MealsScreen> {
           ],
           if (shoppingList != null) ...[
             const SizedBox(height: 12),
-            StaggeredEntry(
-              index: 5,
-              child: _ExpandSection(
-                icon: Icons.shopping_bag_outlined,
-                title: shoppingList['supermarket'] as String? ?? 'Shopping',
-                subtitle: shoppingList['estimated'] == true
-                    ? '${shoppingList['totalEstimatedCost'] ?? ''} · ${shoppingList['ingredientCount'] ?? ((shoppingList['items'] as List?)?.length ?? 0)} items · estimated'
-                    : '${shoppingList['totalEstimatedCost'] ?? ''} · ${shoppingList['ingredientCount'] ?? ((shoppingList['items'] as List?)?.length ?? 0)} items',
-                open: shopOpen,
-                onToggle: (v) => setState(() => shopOpen = v),
-                children: [
-                  ListTile(
-                    dense: true,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                    leading: const Icon(Icons.store_outlined, color: AppColors.accent, size: 20),
-                    title: Text(
-                      _activeStore(state),
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: t.textPrimary),
-                    ),
-                    subtitle: Text(
-                      _nearbyStores.isEmpty ? 'Tap to set your shop' : 'Tap to switch shop (${_nearbyStores.length} nearby)',
-                      style: TextStyle(fontSize: 11, color: t.textMuted),
-                    ),
-                    trailing: _loadingStores
-                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                        : Icon(Icons.chevron_right, color: t.textMuted, size: 20),
-                    onTap: _showStorePicker,
+            _ExpandSection(
+              icon: Icons.shopping_bag_outlined,
+              title: shoppingList['supermarket'] as String? ?? 'Shopping',
+              subtitle: shoppingList['estimated'] == true
+                  ? '${shoppingList['totalEstimatedCost'] ?? ''} · ${shoppingList['ingredientCount'] ?? ((shoppingList['items'] as List?)?.length ?? 0)} items · estimated'
+                  : '${shoppingList['totalEstimatedCost'] ?? ''} · ${shoppingList['ingredientCount'] ?? ((shoppingList['items'] as List?)?.length ?? 0)} items',
+              open: shopOpen,
+              onToggle: (v) => setState(() => shopOpen = v),
+              children: [
+                ListTile(
+                  dense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                  leading: Icon(Icons.store_outlined, color: context.appColors.primary, size: 20),
+                  title: Text(
+                    _activeStore(state),
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: t.textPrimary),
                   ),
-                  Divider(height: 1, color: t.borderSubtle),
-                  ...((shoppingList['items'] as List?) ?? []).map((item) {
-                    final m = item as Map;
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: Row(
-                        children: [
-                          Expanded(child: Text('${m['item']} × ${m['quantity']}', style: TextStyle(fontSize: 14, color: t.textPrimary))),
-                          Text('${m['price']}', style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.accent)),
+                  subtitle: Text(
+                    _nearbyStores.isEmpty ? 'Tap to set your shop' : 'Tap to switch shop (${_nearbyStores.length} nearby)',
+                    style: TextStyle(fontSize: 11, color: t.textMuted),
+                  ),
+                  trailing: _loadingStores
+                      ? const InlineLoading(width: 18, height: 18)
+                      : Icon(Icons.chevron_right, color: t.textMuted, size: 20),
+                  onTap: _showStorePicker,
+                ),
+                Divider(height: 1, color: t.borderSubtle),
+                ...((shoppingList['items'] as List?) ?? []).map((item) {
+                  final m = item as Map;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Row(
+                      children: [
+                        Expanded(child: Text('${m['item']} × ${m['quantity']}', style: TextStyle(fontSize: 14, color: t.textPrimary))),
+                        Text('${m['price']}', style: TextStyle(fontWeight: FontWeight.w600, color: context.appColors.primary)),
+                      ],
+                    ),
+                  );
+                }),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(foregroundColor: context.appColors.primary, side: BorderSide(color: t.borderSubtle)),
+                    onPressed: () {
+                      final items = ((shoppingList['items'] as List?) ?? []).map((e) => '${(e as Map)['item']}').cast<String>().toList();
+                      final store = _activeStore(state);
+                      GroceryService.orderShoppingList(
+                        items,
+                        store: store,
+                        placeId: _placeIdForStore(store),
+                      );
+                    },
+                    icon: const Icon(Icons.shopping_cart_outlined, size: 18),
+                    label: Text('Shop at ${shoppingList['supermarket'] ?? 'store'}'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 12),
                         ],
                       ),
-                    );
-                  }),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(foregroundColor: AppColors.accent, side: BorderSide(color: t.borderSubtle)),
-                      onPressed: () {
-                        final items = ((shoppingList['items'] as List?) ?? []).map((e) => '${(e as Map)['item']}').cast<String>().toList();
-                        final store = _activeStore(state);
-                        GroceryService.orderShoppingList(
-                          items,
-                          store: store,
-                          placeId: _placeIdForStore(store),
-                        );
-                      },
-                      icon: const Icon(Icons.shopping_cart_outlined, size: 18),
-                      label: Text('Shop at ${shoppingList['supermarket'] ?? 'store'}'),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
-          ],
+          ),
         ],
       ),
+    ),
     );
   }
 }
 
 class _MacroChip extends StatelessWidget {
   final String label, value;
-  final bool highlight;
   final bool compact;
 
-  const _MacroChip(this.label, this.value, {this.highlight = false, this.compact = false});
+  const _MacroChip(this.label, this.value, {this.compact = false});
 
   @override
   Widget build(BuildContext context) {
@@ -780,7 +798,7 @@ class _MacroChip extends StatelessWidget {
       child: Column(
         children: [
           Text(label, style: TextStyle(fontSize: compact ? 9 : 10, color: t.textMuted)),
-          Text(value, style: TextStyle(fontWeight: FontWeight.w700, fontSize: compact ? 13 : 16, color: highlight ? AppColors.accent : t.textPrimary)),
+          Text(value, style: TextStyle(fontWeight: FontWeight.w700, fontSize: compact ? 13 : 16, color: t.textPrimary)),
         ],
       ),
     );
@@ -822,7 +840,7 @@ class _PlanPeriodToggle extends StatelessWidget {
                 curve: Curves.easeOutCubic,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: active ? AppColors.accent.withValues(alpha: context.isDarkTheme ? 0.22 : 0.12) : Colors.transparent,
+                  color: active ? context.appColors.primary.withValues(alpha: context.isDarkTheme ? 0.22 : 0.12) : Colors.transparent,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
@@ -830,7 +848,7 @@ class _PlanPeriodToggle extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                    color: active ? AppColors.accent : t.textSecondary,
+                    color: active ? context.appColors.primary : t.textSecondary,
                   ),
                 ),
               ),
@@ -860,7 +878,7 @@ class _ActionButton extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 18, color: onTap == null ? t.textMuted : AppColors.accent),
+            Icon(icon, size: 18, color: onTap == null ? t.textMuted : context.appColors.primary),
             const SizedBox(width: 8),
             Text(label, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: onTap == null ? t.textMuted : t.textPrimary)),
           ],
@@ -888,7 +906,7 @@ class _ExpandSection extends StatelessWidget {
         child: ExpansionTile(
           initiallyExpanded: open,
           onExpansionChanged: onToggle,
-          leading: Icon(icon, color: AppColors.accent, size: 22),
+          leading: Icon(icon, color: context.appColors.primary, size: 22),
           title: Text(title, style: TextStyle(fontWeight: FontWeight.w600, color: context.appTheme.textPrimary)),
           subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: context.appTheme.textSecondary)),
           children: children,

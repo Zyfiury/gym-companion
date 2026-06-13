@@ -7,15 +7,16 @@ class ActionConfirmationChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.appColors;
     return Container(
       margin: const EdgeInsets.only(top: 6),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: AppColors.hydroTintBg,
+        color: c.accentTintBg,
         borderRadius: BorderRadius.circular(100),
-        border: Border.all(color: AppColors.hydroTintBorder),
+        border: Border.all(color: c.accentTintBorder),
       ),
-      child: Text(text, style: const TextStyle(fontSize: 11, color: AppColors.hydro, fontWeight: FontWeight.w500)),
+      child: Text(text, style: TextStyle(fontSize: 11, color: c.dusk, fontWeight: FontWeight.w500)),
     );
   }
 }

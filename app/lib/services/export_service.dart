@@ -32,7 +32,7 @@ class ExportService {
         build: (ctx) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            pw.Text('Gym Companion — Progress Report',
+            pw.Text('Gym Companion - Progress Report',
                 style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 8),
             pw.Text('${displayName ?? "Athlete"} | Goal: ${user.goal} | ${user.weight}kg | Level ${user.gamification['level'] ?? 1}'),

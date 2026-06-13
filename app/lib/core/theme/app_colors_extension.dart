@@ -107,7 +107,7 @@ class AppColorsExtension extends ThemeExtension<AppColorsExtension> {
   Color get infoTintBg => duskDim;
   Color get infoTintBorder => dusk.withValues(alpha: 0.28);
 
-  /// Deep Water — dark teal wellness (unchanged dark mode).
+  /// Deep Water - dark teal wellness (unchanged dark mode).
   static const AppColorsExtension dark = AppColorsExtension(
     bgBase: Color(0xFF111C22),
     bgDeep: Color(0xFF0C1519),
@@ -154,7 +154,7 @@ class AppColorsExtension extends ThemeExtension<AppColorsExtension> {
     navIndicator: Color(0x337FB5A0),
   );
 
-  /// Sea Mist — cool coastal premium wellness (light mode).
+  /// Sea Mist - cool coastal premium wellness (light mode).
   static const AppColorsExtension light = AppColorsExtension(
     bgBase: Color(0xFFE8EEF0),
     bgDeep: Color(0xFFD8E2E6),

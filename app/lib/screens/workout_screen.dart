@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../models/user_data.dart';
 import '../models/workout_status.dart';
 import '../screens/workout_detail_screen.dart';
 import '../providers/app_state.dart';
 import '../services/health_safety_service.dart';
 import '../services/workout_adaptation_service.dart';
-import '../services/youtube_service.dart';
+import '../core/widgets/app_empty_state.dart';
+import '../core/widgets/skeletons.dart';
+import '../core/widgets/tab_load_gate.dart';
 import '../theme/app_theme.dart';
 import '../utils/sheet_padding.dart';
 import '../widgets/premium_ui.dart';
-import '../widgets/shimmer_skeleton.dart';
 import '../widgets/staggered_entry.dart';
-import 'barcode_screen.dart';
+import '../features/workout/workout_recovery_card.dart';
+import '../features/workout/next_session_card.dart';
+import '../features/workout/rest_timer_widget.dart';
+import '../features/workout/exercise_video_sheet.dart';
 import 'custom_workout_builder_screen.dart';
 import '../widgets/page_transitions.dart';
 
@@ -27,7 +30,6 @@ class WorkoutScreen extends StatefulWidget {
 class _WorkoutScreenState extends State<WorkoutScreen> {
   static const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   String? expanded;
-  bool _loadingVideo = false;
 
   @override
   void initState() {
@@ -35,64 +37,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     expanded = days[DateTime.now().weekday % 7];
   }
 
-  Future<void> _playExerciseVideo(String exercise) async {
-    final user = context.read<AppState>().user!;
-    final safety = HealthSafetyService.checkWorkoutSafe(exercise, user);
-    if (!safety.isSafe) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(safety.warning ?? 'Exercise adapted for your mobility')),
-      );
-      return;
-    }
-
-    setState(() => _loadingVideo = true);
-    final query = HealthSafetyService.videoSearchQuery(exercise, user);
-    final cacheKey = HealthSafetyService.videoCacheKey(exercise, user);
-    final video = await YouTubeService.searchExercise(query, cacheKey: cacheKey);
-    if (!mounted) return;
-    setState(() => _loadingVideo = false);
-
-    if (video == null) {
-      final name = exercise.split(RegExp(r'\s+\d')).first.trim();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(YouTubeService.hasKey ? 'No video found for $name' : 'Add YOUTUBE_API_KEY for exercise videos')),
-      );
-      return;
-    }
-
-    final t = context.appTheme;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: t.card,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => Padding(
-        padding: sheetInsets(ctx, horizontal: 20, top: 20, extra: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(video.title, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: t.textPrimary)),
-            const SizedBox(height: 14),
-            if (video.thumbnail.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: Image.network(video.thumbnail, height: 160, width: double.infinity, fit: BoxFit.cover),
-              ),
-            const SizedBox(height: 14),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                style: FilledButton.styleFrom(backgroundColor: AppColors.accent, padding: const EdgeInsets.symmetric(vertical: 14)),
-                onPressed: () => launchUrl(Uri.parse('https://youtube.com/watch?v=${video.videoId}'), mode: LaunchMode.externalApplication),
-                icon: const Icon(Icons.play_circle_outline),
-                label: const Text('Watch on YouTube'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  Future<void> _refresh() async {
+    await context.read<AppState>().refreshHealthData();
   }
+
+  Future<void> _playExerciseVideo(String exercise) => showExerciseVideoSheet(context, exercise);
 
   @override
   Widget build(BuildContext context) {
@@ -102,78 +51,52 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     final workouts = user.weeklyPlan.workouts;
     final seatedPlan = WorkoutAdaptationService.needsSeatedPlan(user);
     final activeCustom = user.activeCustomWorkout;
+    final c = context.appColors;
     final today = days[DateTime.now().weekday % 7];
+
+    if (workouts.isEmpty) {
+      return AmbientBackground(
+        child: ListView(
+          padding: tabListPadding(context),
+          children: [
+            AppEmptyState(
+              icon: Icons.fitness_center_outlined,
+              heading: 'No session planned',
+              body: "Let's build your week",
+              ctaLabel: 'Create workout',
+              onCta: () => pushPremium(context, const CustomWorkoutListScreen()),
+            ),
+          ],
+        ),
+      );
+    }
+
     final todayW = workouts.where((w) => w.day == today).firstOrNull ?? workouts.first;
 
-    return AmbientBackground(
+    return TabLoadGate(
+      skeleton: ListView(
+        padding: tabListPadding(context),
+        children: const [
+          SkeletonWorkoutItem(),
+          SkeletonWorkoutItem(),
+          SkeletonWorkoutItem(),
+          SkeletonWorkoutItem(),
+        ],
+      ),
+      child: AmbientBackground(
       child: Stack(
       children: [
-        ListView(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        RefreshIndicator(
+        onRefresh: _refresh,
+        color: c.primary,
+        child: ListView(
+          padding: tabListPadding(context),
+          physics: const AlwaysScrollableScrollPhysics(),
           children: [
-            StaggeredEntry(index: 0, child: BarcodeScreen(key: ValueKey('workout-barcode'))),
-            if (seatedPlan) ...[
-              const SizedBox(height: 14),
-              StaggeredEntry(
-                index: 1,
-                child: AppCard(
-                  child: Row(
-                    children: [
-                      Icon(Icons.accessible_forward_rounded, color: AppColors.accent, size: 22),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Your plan is adapted for seated/upper-body training.',
-                          style: TextStyle(fontSize: 13, color: t.textSecondary, height: 1.4),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-            const SizedBox(height: 14),
             StaggeredEntry(
-              index: 1,
-              child: Semantics(
-                identifier: 'workout-custom-routines',
-                button: true,
-                child: AppCard(
-                key: const ValueKey('workout-custom-routines'),
-                onTap: () => pushPremium(context, const CustomWorkoutListScreen()),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
-                      child: const Icon(Icons.fitness_center, color: AppColors.accent, size: 20),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('My routines', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: t.textPrimary)),
-                          Text('Create & edit custom workouts', style: TextStyle(fontSize: 12, color: t.textSecondary)),
-                        ],
-                      ),
-                    ),
-                    Icon(Icons.chevron_right, color: t.textMuted),
-                  ],
-                ),
-              ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            StaggeredEntry(
-              index: 2,
+              index: 0,
               child: AppCard(
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => WorkoutDetailScreen(workout: todayW)),
-                  );
-                },
+                onTap: () => pushPremium(context, WorkoutDetailScreen(workout: todayW)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -182,8 +105,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                         Container(
                           width: 40,
                           height: 40,
-                          decoration: BoxDecoration(gradient: AppColors.gradient, borderRadius: BorderRadius.circular(12)),
-                          child: const Icon(Icons.bolt, color: Colors.white, size: 20),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: [c.dusk, c.primary]),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(Icons.bolt, color: c.onPrimary, size: 20),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
@@ -198,10 +124,10 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: AppColors.accent.withValues(alpha: 0.12),
+                                        color: c.primary.withValues(alpha: 0.12),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
-                                      child: const Text('Custom', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.accent)),
+                                      child: Text('Custom', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: c.primary)),
                                     ),
                                   ],
                                 ],
@@ -214,12 +140,12 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: AppColors.emerald.withValues(alpha: 0.12),
+                              color: c.mint.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
                               context.watch<AppState>().todayWorkoutStatus.name,
-                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.emerald),
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: c.mint),
                             ),
                           ),
                       ],
@@ -230,9 +156,33 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 14),
+            const StaggeredEntry(index: 1, child: NextSessionCard()),
+            const SizedBox(height: 14),
+            const StaggeredEntry(index: 2, child: WorkoutRecoveryCard()),
+            if (seatedPlan) ...[
+              const SizedBox(height: 14),
+              StaggeredEntry(
+                index: 2,
+                child: AppCard(
+                  child: Row(
+                    children: [
+                      Icon(Icons.accessible_forward_rounded, color: c.primary, size: 22),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Your plan is adapted for seated/upper-body training.',
+                          style: TextStyle(fontSize: 13, color: t.textSecondary, height: 1.4),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 24),
             StaggeredEntry(
-              index: 2,
+              index: 3,
               child: const SectionLabel('WEEKLY SPLIT'),
             ),
             const SizedBox(height: 12),
@@ -257,14 +207,14 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                         width: 36,
                         height: 36,
                         decoration: BoxDecoration(
-                          color: isToday ? AppColors.accent.withValues(alpha: 0.12) : t.elevated,
+                          color: isToday ? c.primary.withValues(alpha: 0.12) : t.elevated,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Center(
-                          child: Text(w.day, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isToday ? AppColors.accent : t.textMuted)),
+                          child: Text(w.day, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isToday ? c.primary : t.textMuted)),
                         ),
                       ),
-                      title: Text(w.focus, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: isToday ? AppColors.accent : t.textPrimary)),
+                      title: Text(w.focus, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: isToday ? c.primary : t.textPrimary)),
                       subtitle: Text('${w.exercises.length} exercises', style: TextStyle(fontSize: 12, color: t.textSecondary)),
                       children: w.exercises
                           .map((e) => _ExerciseListTile(exercise: e, user: user, onTap: () => _playExerciseVideo(e)))
@@ -274,16 +224,50 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 ),
               );
             }),
+            const SizedBox(height: 14),
+            StaggeredEntry(
+              index: workouts.length + 4,
+              child: Semantics(
+                identifier: 'workout-custom-routines',
+                button: true,
+                child: AppCard(
+                  key: const ValueKey('workout-custom-routines'),
+                  onTap: () => pushPremium(context, const CustomWorkoutListScreen()),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(color: c.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
+                        child: Icon(Icons.fitness_center, color: c.primary, size: 20),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('My routines', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: t.textPrimary)),
+                            Text('Create & edit custom workouts', style: TextStyle(fontSize: 12, color: t.textSecondary)),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.chevron_right, color: t.textMuted),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
-        if (_loadingVideo)
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: AppCard(child: SizedBox(width: 280, child: MealCardSkeleton())),
-            ),
-          ),
+        ),
+        const Positioned(
+          left: 0,
+          right: 0,
+          bottom: 8,
+          child: RestTimerPill(),
+        ),
       ],
+    ),
     ),
     );
   }
@@ -299,20 +283,21 @@ class _ExerciseRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.appTheme;
+    final c = context.appColors;
     final safety = HealthSafetyService.checkWorkoutSafe(label, user);
     if (!safety.isSafe) {
       return Padding(
         padding: const EdgeInsets.only(bottom: 10),
         child: Row(
           children: [
-            Icon(Icons.info_outline, size: 18, color: AppColors.ember),
+            Icon(Icons.info_outline, size: 18, color: c.sand),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(label, style: TextStyle(fontSize: 14, color: t.textPrimary)),
-                  Text('Adapted for your mobility', style: TextStyle(fontSize: 11, color: AppColors.ember)),
+                  Text('Adapted for your mobility', style: TextStyle(fontSize: 11, color: c.sand)),
                 ],
               ),
             ),
@@ -326,7 +311,7 @@ class _ExerciseRow extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 10),
         child: Row(
           children: [
-            Icon(Icons.play_circle_outline, size: 18, color: AppColors.accent),
+            Icon(Icons.play_circle_outline, size: 18, color: c.primary),
             const SizedBox(width: 12),
             Expanded(child: Text(label, style: TextStyle(fontSize: 14, color: t.textPrimary))),
           ],
@@ -346,6 +331,7 @@ class _ExerciseListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.appTheme;
+    final c = context.appColors;
     final safety = HealthSafetyService.checkWorkoutSafe(exercise, user);
     return ListTile(
       dense: true,
@@ -353,11 +339,11 @@ class _ExerciseListTile extends StatelessWidget {
       leading: Icon(
         safety.isSafe ? Icons.fitness_center : Icons.info_outline,
         size: 16,
-        color: safety.isSafe ? t.textMuted : AppColors.ember,
+        color: safety.isSafe ? t.textMuted : c.sand,
       ),
       title: Text(exercise, style: TextStyle(fontSize: 14, color: t.textPrimary)),
-      subtitle: safety.isSafe ? null : Text('Adapted for your mobility', style: TextStyle(fontSize: 11, color: AppColors.ember)),
-      trailing: safety.isSafe ? Icon(Icons.play_circle_outline, size: 20, color: AppColors.accent) : null,
+      subtitle: safety.isSafe ? null : Text('Adapted for your mobility', style: TextStyle(fontSize: 11, color: c.sand)),
+      trailing: safety.isSafe ? Icon(Icons.play_circle_outline, size: 20, color: c.primary) : null,
       onTap: safety.isSafe ? onTap : null,
     );
   }

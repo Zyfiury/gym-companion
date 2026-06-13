@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../models/user_data.dart';
 import '../../providers/app_state.dart';
 import '../../services/location_service.dart';
+import '../../core/widgets/app_toast.dart';
 import '../../theme/app_theme.dart';
 import '../gradient_button.dart';
 import '../premium_ui.dart';
@@ -18,9 +19,11 @@ class NutritionModePanel extends StatefulWidget {
 }
 
 class _NutritionModePanelState extends State<NutritionModePanel> {
+  bool _open = false;
   bool _dineIn = false;
   bool _loading = false;
   bool _requestingLocation = false;
+  bool _favsOpen = false;
   String? _areaLabel;
   String? _error;
   String? _locationHint;
@@ -90,9 +93,7 @@ class _NutritionModePanelState extends State<NutritionModePanel> {
       });
 
       if (result != null && result.options.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Found ${result.options.length} ${_dineIn ? 'restaurants' : 'delivery'} options')),
-        );
+        AppToast.success(context, 'Found ${result.options.length} ${_dineIn ? 'restaurants' : 'delivery'} options');
       }
     } catch (_) {
       if (mounted) {
@@ -108,110 +109,208 @@ class _NutritionModePanelState extends State<NutritionModePanel> {
     _persistMode(dineIn);
   }
 
+  String _collapsedSubtitle(int optionCount, int favCount) {
+    final parts = <String>[];
+    if (optionCount > 0) parts.add('$optionCount options ready');
+    if (favCount > 0) parts.add('$favCount favourites');
+    if (parts.isEmpty) return 'Takeaways & restaurants that fit your macros';
+    return parts.join(' · ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.appTheme;
-    final options = context.watch<AppState>().user?.weeklyPlan.deliveryOptions ?? [];
+    final state = context.watch<AppState>();
+    final options = state.user?.weeklyPlan.deliveryOptions ?? [];
+    final favourites = state.user?.favouriteDelivery ?? [];
     final showEnableLocation = _error != null && _areaLabel == null && _isLocationError(_error!);
     final showAllergyHint = _error != null && !_isLocationError(_error!);
 
     return AppCard(
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(Icons.delivery_dining_outlined, size: 20, color: AppColors.accent),
-              const SizedBox(width: 8),
-              Text(
-                'Delivery & eat out',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: t.textPrimary),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Find nearby takeaways or restaurants that fit your macros and allergies.',
-            style: TextStyle(fontSize: 12, color: t.textSecondary, height: 1.35),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _ModeChip(
-                  label: 'Deliver to me',
-                  selected: !_dineIn,
-                  onTap: () => _onModeChanged(false),
+          Semantics(
+            identifier: 'delivery-panel-toggle',
+            button: true,
+            child: InkWell(
+              onTap: () => setState(() => _open = !_open),
+              borderRadius: BorderRadius.circular(20),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+                child: Row(
+                  children: [
+                    Icon(Icons.delivery_dining_outlined, size: 20, color: context.appColors.primary),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Delivery & eat out',
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: t.textPrimary),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _collapsedSubtitle(options.length, favourites.length),
+                            style: TextStyle(fontSize: 11.5, color: t.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                    AnimatedRotation(
+                      turns: _open ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 200),
+                      child: Icon(Icons.keyboard_arrow_down, color: t.textMuted),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _ModeChip(
-                  label: 'Eat out',
-                  selected: _dineIn,
-                  onTap: () => _onModeChanged(true),
-                ),
+            ),
+          ),
+          AnimatedCrossFade(
+            firstChild: const SizedBox(width: double.infinity),
+            secondChild: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (favourites.isNotEmpty) ...[
+                    InkWell(
+                      onTap: () => setState(() => _favsOpen = !_favsOpen),
+                      borderRadius: BorderRadius.circular(10),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Row(
+                          children: [
+                            Icon(Icons.favorite, size: 15, color: context.appColors.primary),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Favourites (${favourites.length})',
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: t.textPrimary),
+                            ),
+                            const Spacer(),
+                            Icon(_favsOpen ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, size: 18, color: t.textMuted),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (_favsOpen) ...[
+                      const SizedBox(height: 6),
+                      ...favourites.take(5).map((opt) => DeliveryOptionTile(option: opt)),
+                    ],
+                    const SizedBox(height: 10),
+                    Divider(height: 1, color: t.borderSubtle),
+                    const SizedBox(height: 12),
+                  ],
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _ModeChip(
+                          label: 'Deliver to me',
+                          selected: !_dineIn,
+                          onTap: () => _onModeChanged(false),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _ModeChip(
+                          label: 'Eat out',
+                          selected: _dineIn,
+                          onTap: () => _onModeChanged(true),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Icon(Icons.location_on_outlined, size: 16, color: t.textMuted),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          _areaLabel != null
+                              ? 'Near $_areaLabel'
+                              : _locationHint ?? 'Uses your GPS for nearby spots',
+                          style: TextStyle(fontSize: 12, color: t.textSecondary),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 8),
+                    Text(_error!, style: TextStyle(fontSize: 12, color: context.appColors.sand, height: 1.4)),
+                  ],
+                  const SizedBox(height: 14),
+                  if (showEnableLocation) ...[
+                    GradientButton(
+                      label: _requestingLocation ? 'Requesting…' : 'Enable location',
+                      expanded: true,
+                      onPressed: (_requestingLocation || _loading)
+                          ? null
+                          : () async {
+                              final result = await _resolveLocation();
+                              if (result?.ok == true && mounted) {
+                                AppToast.success(context, 'Location ready - tap Find options');
+                              }
+                            },
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  if (showAllergyHint) ...[
+                    Text(
+                      'Adjust allergies in Profile → Nutrition if results look too strict.',
+                      style: TextStyle(fontSize: 11, color: t.textMuted, height: 1.35),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  GradientButton(
+                    label: _loading ? 'Searching…' : 'Find options',
+                    expanded: true,
+                    onPressed: (_loading || _requestingLocation) ? null : _findOptions,
+                  ),
+                  if (options.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _dineIn ? 'Restaurants near you' : 'Delivery near you',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: t.textPrimary),
+                          ),
+                        ),
+                        Semantics(
+                          identifier: 'delivery-clear-results',
+                          button: true,
+                          child: InkWell(
+                            onTap: () => context.read<AppState>().clearDeliveryOptions(),
+                            borderRadius: BorderRadius.circular(10),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.close, size: 14, color: t.textMuted),
+                                  const SizedBox(width: 4),
+                                  Text('Clear', style: TextStyle(fontSize: 12, color: t.textMuted, fontWeight: FontWeight.w500)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    ...options.take(5).map((opt) => DeliveryOptionTile(option: opt)),
+                  ],
+                ],
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Icon(Icons.location_on_outlined, size: 16, color: t.textMuted),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  _areaLabel != null
-                      ? 'Near $_areaLabel'
-                      : _locationHint ?? 'Uses your GPS for nearby spots',
-                  style: TextStyle(fontSize: 12, color: t.textSecondary),
-                ),
-              ),
-            ],
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: 8),
-            Text(_error!, style: TextStyle(fontSize: 12, color: AppColors.ember, height: 1.4)),
-          ],
-          const SizedBox(height: 14),
-          if (showEnableLocation) ...[
-            GradientButton(
-              label: _requestingLocation ? 'Requesting…' : 'Enable location',
-              expanded: true,
-              onPressed: (_requestingLocation || _loading)
-                  ? null
-                  : () async {
-                      final result = await _resolveLocation();
-                      if (result?.ok == true && mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Location ready — tap Find options')),
-                        );
-                      }
-                    },
             ),
-            const SizedBox(height: 8),
-          ],
-          if (showAllergyHint) ...[
-            Text(
-              'Adjust allergies in Profile → Nutrition if results look too strict.',
-              style: TextStyle(fontSize: 11, color: t.textMuted, height: 1.35),
-            ),
-            const SizedBox(height: 8),
-          ],
-          GradientButton(
-            label: _loading ? 'Searching…' : 'Find options',
-            expanded: true,
-            onPressed: (_loading || _requestingLocation) ? null : _findOptions,
+            crossFadeState: _open ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 220),
+            sizeCurve: Curves.easeOutCubic,
           ),
-          if (options.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Text(
-              _dineIn ? 'Restaurants near you' : 'Delivery near you',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: t.textPrimary),
-            ),
-            const SizedBox(height: 10),
-            ...options.take(5).map((opt) => DeliveryOptionTile(option: opt)),
-          ],
         ],
       ),
     );
@@ -238,7 +337,7 @@ class _ModeChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.appTheme;
     return Material(
-      color: selected ? AppColors.accent.withValues(alpha: 0.12) : t.elevated,
+      color: selected ? context.appColors.primary.withValues(alpha: 0.12) : t.elevated,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
@@ -247,7 +346,7 @@ class _ModeChip extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: selected ? AppColors.accent : t.borderSubtle),
+            border: Border.all(color: selected ? context.appColors.primary : t.borderSubtle),
           ),
           alignment: Alignment.center,
           child: Text(
@@ -255,7 +354,7 @@ class _ModeChip extends StatelessWidget {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: selected ? AppColors.accent : t.textSecondary,
+              color: selected ? context.appColors.primary : t.textSecondary,
             ),
           ),
         ),

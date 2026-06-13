@@ -6,7 +6,7 @@ import '../models/user_data.dart';
 import 'backend_config.dart';
 import 'sync_service.dart';
 
-/// Bridge to OpenClaw agent gateway — sends CHAT_COMMAND payloads.
+/// Bridge to OpenClaw agent gateway - sends CHAT_COMMAND payloads.
 class OpenClawService {
   static Future<Map<String, dynamic>> sendChatCommand({
     required String message,

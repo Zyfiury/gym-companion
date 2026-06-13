@@ -1,15 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
+import '../core/widgets/app_toast.dart';
 import '../theme/app_theme.dart';
-import '../widgets/empty_state_card.dart';
+import '../utils/sheet_padding.dart';
+import '../core/widgets/app_empty_state.dart';
+import '../core/widgets/skeletons.dart';
+import '../core/widgets/tab_load_gate.dart';
 import '../widgets/health_connect_sheet.dart';
 import '../widgets/premium_ui.dart';
 import '../widgets/pr_log_sheet.dart';
 import '../widgets/staggered_entry.dart';
 import '../utils/personal_record_helper.dart';
 import '../widgets/weight_line_chart.dart';
+import '../features/progress/calorie_trend_card.dart';
+import '../features/progress/weekly_volume_chart.dart';
+import '../features/progress/weekly_goals_section.dart';
 
 class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key});
@@ -39,6 +47,14 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
   String get _logDateLabel => _loggingToday ? 'Today' : DateFormat('d MMM yyyy').format(_logDate);
 
+  Future<void> _refresh() async {
+    final state = context.read<AppState>();
+    await Future.wait([
+      state.refreshHealthData(),
+      state.refreshDailyLogsHistory(),
+    ]);
+  }
+
   Future<void> _pickLogDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -51,91 +67,93 @@ class _ProgressScreenState extends State<ProgressScreen> {
     if (picked != null) setState(() => _logDate = picked);
   }
 
+  void _showAllRecords(BuildContext context, List<Map<String, dynamic>> records) {
+    final t = context.appTheme;
+    final c = context.appColors;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: t.card,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.6,
+        maxChildSize: 0.9,
+        builder: (_, scrollCtrl) => Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+              child: Row(
+                children: [
+                  Icon(Icons.emoji_events, color: c.primary, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'All personal records (${records.length})',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: t.textPrimary),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView.separated(
+                controller: scrollCtrl,
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                itemCount: records.length,
+                separatorBuilder: (_, i) => Divider(height: 1, color: t.borderSubtle),
+                itemBuilder: (_, i) {
+                  final r = records[i];
+                  final value = PersonalRecordHelper.formatValue(r['value'], r['unit'] as String? ?? '');
+                  return ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      r['exercise'] as String? ?? '',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: t.textPrimary),
+                    ),
+                    subtitle: Text(r['date'] as String? ?? '', style: TextStyle(fontSize: 11, color: t.textMuted)),
+                    trailing: Text(value, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: t.textPrimary)),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.appTheme;
+    final c = context.appColors;
     final state = context.watch<AppState>();
     final u = state.user!;
-
-    final macros = u.dailyMacrosLogged;
-    final calTarget = u.weeklyPlan.macros['calories'] ?? u.tdee;
 
     final records = PersonalRecordHelper.merge(u.personalRecords);
     final topRecords = records.take(5).toList();
     final prSuggestions = PersonalRecordHelper.exerciseSuggestions(u);
 
-    return AmbientBackground(
+    return TabLoadGate(
+      skeleton: ListView(
+        padding: tabListPadding(context),
+        children: const [
+          SkeletonCard(height: 200),
+          SizedBox(height: 14),
+          SkeletonCard(),
+          SizedBox(height: 14),
+          SkeletonMacroBar(),
+        ],
+      ),
+      child: AmbientBackground(
+      child: RefreshIndicator(
+      onRefresh: _refresh,
+      color: c.primary,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        padding: tabListPadding(context),
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
           StaggeredEntry(
             index: 0,
-            child: AppCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SectionLabel('Today'),
-                  const SizedBox(height: 16),
-                  MacroBar(label: 'Calories', current: macros.calories, target: calTarget, color: AppColors.orange),
-                  if (_loggingToday) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      '${state.activeCaloriesBurned.round()} kcal burned · Net ${state.netCalories.round()} kcal',
-                      style: TextStyle(fontSize: 12, color: t.textSecondary),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  MacroBar(label: 'Protein', current: macros.protein, target: u.weeklyPlan.macros['protein'] ?? 140, color: AppColors.accent),
-                  const SizedBox(height: 12),
-                  MacroBar(label: 'Carbs', current: macros.carbs, target: u.weeklyPlan.macros['carbs'] ?? 200, color: AppColors.blue),
-                  const SizedBox(height: 12),
-                  MacroBar(label: 'Fat', current: macros.fat, target: u.weeklyPlan.macros['fat'] ?? 60, color: AppColors.emerald),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          StaggeredEntry(
-            index: 1,
-            child: PressableScale(
-              onTap: () => showHealthConnectSheet(
-                context,
-                connected: state.healthConnected,
-                steps: u.steps.toInt(),
-              ),
-              child: AppCard(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-                      child: const Icon(Icons.directions_walk, color: AppColors.accent, size: 22),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(child: Text('Steps today', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: t.textPrimary))),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          state.healthConnected ? '${u.steps.toInt()}' : '—',
-                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: t.textPrimary),
-                        ),
-                        if (state.healthConnected && state.stepCaloriesBurned > 0)
-                          Text(
-                            '${state.stepCaloriesBurned.round()} kcal',
-                            style: TextStyle(fontSize: 11, color: t.textSecondary),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          StaggeredEntry(
-            index: 2,
             child: AppCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -153,7 +171,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                         ..sort((a, b) => (b['date'] as String).compareTo(a['date'] as String));
                       return recent.take(5).map((e) {
                         final d = DateTime.tryParse(e['date'] as String? ?? '');
-                        final label = d != null ? '${d.day}/${d.month}/${d.year}' : '${e['date']}';
+                        final label = d != null ? DateFormat('d MMM yyyy').format(d) : '${e['date']}';
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 6),
                           child: Row(
@@ -201,19 +219,17 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       ),
                       const SizedBox(width: 10),
                       FilledButton(
-                        style: FilledButton.styleFrom(backgroundColor: AppColors.accent, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14)),
+                        style: FilledButton.styleFrom(backgroundColor: c.primary, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14)),
                         onPressed: () async {
                           final v = double.tryParse(_weightCtrl.text);
                           if (v == null) return;
-                          final messenger = ScaffoldMessenger.of(context);
-                          final chip = await context.read<AppState>().logWeight(v, date: _logDate);
+                          HapticFeedback.lightImpact();
+                          await context.read<AppState>().logWeight(v, date: _logDate);
                           _weightCtrl.clear();
                           setState(() => _logDate = DateTime.now());
-                          if (chip != null && mounted) {
-                            messenger.showSnackBar(SnackBar(content: Text(chip)));
-                          }
+                          if (mounted) AppToast.success(context, 'Weight saved ✓');
                         },
-                        child: const Text('Log'),
+                        child: const Text('Log weight'),
                       ),
                     ],
                   ),
@@ -222,8 +238,53 @@ class _ProgressScreenState extends State<ProgressScreen> {
             ),
           ),
           const SizedBox(height: 14),
+          const StaggeredEntry(index: 1, child: CalorieTrendCard()),
+          const SizedBox(height: 14),
+          const StaggeredEntry(index: 1, child: WeeklyGoalsSection()),
+          const SizedBox(height: 14),
+          const StaggeredEntry(index: 2, child: WeeklyVolumeChart()),
+          const SizedBox(height: 14),
           StaggeredEntry(
             index: 3,
+            child: PressableScale(
+              onTap: () => showHealthConnectSheet(
+                context,
+                connected: state.healthConnected,
+                steps: u.steps.toInt(),
+              ),
+              child: AppCard(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(color: c.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                      child: Icon(Icons.directions_walk, color: c.primary, size: 22),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(child: Text('Steps today', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: t.textPrimary))),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          state.healthConnected ? '${u.steps.toInt()}' : '-',
+                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: t.textPrimary),
+                        ),
+                        if (state.healthConnected && state.stepCaloriesBurned > 0)
+                          Text(
+                            '${state.stepCaloriesBurned.round()} kcal',
+                            style: TextStyle(fontSize: 11, color: t.textSecondary),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          StaggeredEntry(
+            index: 4,
             child: AppCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -235,18 +296,18 @@ class _ProgressScreenState extends State<ProgressScreen> {
                         onPressed: () => showPrLogSheet(context, extraExercises: prSuggestions),
                         icon: const Icon(Icons.add, size: 18),
                         label: const Text('Log PR'),
-                        style: TextButton.styleFrom(foregroundColor: AppColors.accent),
+                        style: TextButton.styleFrom(foregroundColor: c.primary),
                       ),
                     ],
                   ),
                   const SizedBox(height: 8),
                   if (topRecords.isEmpty)
-                    EmptyStateCard(
+                    AppEmptyState(
                       icon: Icons.emoji_events_outlined,
-                      headline: 'No PRs logged yet',
-                      subtext: 'Track bench, squat, deadlift, and any lift you improve on.',
-                      buttonLabel: 'Log a PR',
-                      onAction: () => showPrLogSheet(context, extraExercises: prSuggestions),
+                      heading: 'No personal records yet',
+                      body: 'Complete a workout to start tracking PRs',
+                      ctaLabel: 'Start workout',
+                      onCta: () => context.read<AppState>().setTab(1),
                     )
                   else ...[
                     ...topRecords.map((r) {
@@ -260,10 +321,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: AppColors.accent.withValues(alpha: 0.1),
+                                color: c.primary.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              child: const Icon(Icons.emoji_events, color: AppColors.accent, size: 18),
+                              child: Icon(Icons.emoji_events, color: c.primary, size: 18),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -281,7 +342,22 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       );
                     }),
                     if (records.length > 5)
-                      Text('${records.length - 5} more in your history', style: TextStyle(fontSize: 12, color: t.textMuted)),
+                      InkWell(
+                        onTap: () => _showAllRecords(context, records),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            children: [
+                              Text(
+                                'View all ${records.length} PRs',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c.primary),
+                              ),
+                              Icon(Icons.chevron_right, size: 16, color: c.primary),
+                            ],
+                          ),
+                        ),
+                      ),
                   ],
                 ],
               ),
@@ -289,6 +365,8 @@ class _ProgressScreenState extends State<ProgressScreen> {
           ),
         ],
       ),
+    ),
+    ),
     );
   }
 }

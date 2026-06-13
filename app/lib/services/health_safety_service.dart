@@ -39,18 +39,18 @@ class HealthSafetyService {
     final lower = exercise.toLowerCase();
     if (user.pregnant) {
       if (lower.contains('deadlift') || lower.contains('heavy squat')) {
-        return const SafetyCheck(isSafe: false, warning: 'Avoid heavy lifts during pregnancy — use supported alternatives.');
+        return const SafetyCheck(isSafe: false, warning: 'Avoid heavy lifts during pregnancy - use supported alternatives.');
       }
     }
     if (user.disabilities.contains('wheelchair') || user.disabilities.contains('mobility_limited')) {
       const blocked = ['bench press', 'leg press', 'squat', 'deadlift', 'rdl', 'bulgarian', 'leg curl', 'ohp', 'barbell row', 'walk 30'];
       if (blocked.any(lower.contains)) {
-        return const SafetyCheck(isSafe: false, warning: 'Adapted for your mobility — seated alternatives in your plan.');
+        return const SafetyCheck(isSafe: false, warning: 'Adapted for your mobility - seated alternatives in your plan.');
       }
     }
     for (final d in user.disabilities) {
       if (d == 'knee_injury' && (lower.contains('squat') || lower.contains('lunge'))) {
-        return SafetyCheck(isSafe: false, warning: 'High knee stress — substituted in your plan.');
+        return SafetyCheck(isSafe: false, warning: 'High knee stress - substituted in your plan.');
       }
       if (d == 'back_pain' && lower.contains('deadlift')) {
         return SafetyCheck(isSafe: false, warning: 'Spinal loading avoided due to back pain.');
@@ -67,7 +67,7 @@ class HealthSafetyService {
     for (final med in user.medications) {
       final m = med.toLowerCase();
       if (m.contains('statin') && combined.contains('grapefruit')) {
-        return const SafetyCheck(isSafe: false, warning: 'Grapefruit can interact with statins — check with your doctor.');
+        return const SafetyCheck(isSafe: false, warning: 'Grapefruit can interact with statins - check with your doctor.');
       }
     }
     return const SafetyCheck(isSafe: true);
@@ -76,7 +76,7 @@ class HealthSafetyService {
   static String? periodNutritionHint(UserData user) {
     if (!user.tracksPeriod) return null;
     if (user.periodPhase == 'menstrual') {
-      return 'Iron and magnesium rich — good for energy during your period.';
+      return 'Iron and magnesium rich - good for energy during your period.';
     }
     if (user.periodPhase == 'luteal') {
       return 'Complex carbs and protein help manage pre-period cravings.';

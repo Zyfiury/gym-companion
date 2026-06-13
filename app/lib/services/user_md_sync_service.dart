@@ -29,7 +29,7 @@ class UserMdSyncService {
 
   static String _buildMarkdown(UserData u, {String? displayName}) {
     final buf = StringBuffer();
-    buf.writeln('# USER.md — Profile & Progress\n');
+    buf.writeln('# USER.md - Profile & Progress\n');
     buf.writeln('## Profile');
     buf.writeln('- **Goal:** ${u.goal}');
     buf.writeln('- **Weight:** ${u.weight} kg');
@@ -76,7 +76,7 @@ class UserMdSyncService {
     }
     buf.writeln('\n### Workout split');
     for (final w in u.weeklyPlan.workouts) {
-      buf.writeln('- **${w.day}** — ${w.focus}: ${w.exercises.join(', ')}');
+      buf.writeln('- **${w.day}** - ${w.focus}: ${w.exercises.join(', ')}');
     }
     if (u.weeklyPlan.meals.isNotEmpty) {
       buf.writeln('\n### Meal plan');
@@ -86,11 +86,11 @@ class UserMdSyncService {
     }
     if (u.weeklyPlan.shoppingList != null) {
       final sl = u.weeklyPlan.shoppingList!;
-      buf.writeln('\n### Shopping list — ${sl['supermarket'] ?? 'Store'} (${sl['totalEstimatedCost'] ?? ''})');
+      buf.writeln('\n### Shopping list - ${sl['supermarket'] ?? 'Store'} (${sl['totalEstimatedCost'] ?? ''})');
       final items = sl['items'] as List? ?? [];
       for (final item in items) {
         final m = item as Map<String, dynamic>;
-        buf.writeln('- ${m['item']} × ${m['quantity']} — ${m['price']}');
+        buf.writeln('- ${m['item']} × ${m['quantity']} - ${m['price']}');
       }
     }
 

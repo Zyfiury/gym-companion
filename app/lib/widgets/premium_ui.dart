@@ -55,7 +55,7 @@ class SectionLabel extends StatelessWidget {
   }
 }
 
-/// Circular macro progress — hero element on dashboard.
+/// Circular macro progress - hero element on dashboard.
 class MacroRing extends StatelessWidget {
   final double progress;
   final String value;
@@ -97,17 +97,21 @@ class StatPill extends StatelessWidget {
 
   const StatPill({super.key, required this.icon, required this.value, required this.label, this.onTap});
 
-  Color _iconColor() => switch (label) {
-        'Water' => AppColors.hydro,
-        'Streak' || 'XP' => AppColors.volt,
-        _ => AppColors.ember,
-      };
+  Color _iconColor(BuildContext context) {
+    final c = context.appColors;
+    return switch (label) {
+      'Water' => c.dusk,
+      'Streak' || 'XP' => c.primary,
+      _ => c.sand,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
     final t = context.appTheme;
-    final iconColor = _iconColor();
+    final iconColor = _iconColor(context);
     final iconBg = iconColor.withValues(alpha: context.isDarkTheme ? 0.12 : 0.08);
+    final isStreak = label == 'Streak';
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
@@ -123,7 +127,20 @@ class StatPill extends StatelessWidget {
               child: Icon(icon, size: 16, color: iconColor),
             ),
             const SizedBox(height: 6),
-            Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w500, color: t.textPrimary)),
+            AnimatedSwitcher(
+              duration: Duration(milliseconds: isStreak ? 250 : 300),
+              transitionBuilder: (child, anim) => isStreak
+                  ? ScaleTransition(scale: anim, child: child)
+                  : SlideTransition(
+                      position: Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(anim),
+                      child: child,
+                    ),
+              child: Text(
+                value,
+                key: ValueKey(value),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w500, color: t.textPrimary),
+              ),
+            ),
             Text(
               label.toUpperCase(),
               style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 0.88, color: t.textMuted),
@@ -164,10 +181,10 @@ class ActionTile extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.accent.withValues(alpha: context.isDarkTheme ? 0.15 : 0.08),
+                  color: context.appColors.primary.withValues(alpha: context.isDarkTheme ? 0.15 : 0.08),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, size: 22, color: AppColors.accent),
+                child: Icon(icon, size: 22, color: context.appColors.primary),
               ),
               const SizedBox(height: 10),
               Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: t.textPrimary)),
@@ -211,7 +228,7 @@ class MacroBar extends StatelessWidget {
   }
 }
 
-/// Coach avatar — optional one-shot pulse on the main header only.
+/// Coach avatar - optional one-shot pulse on the main header only.
 class CoachAvatar extends StatelessWidget {
   final double size;
   final bool pulse;
@@ -220,12 +237,13 @@ class CoachAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.appColors;
     final iconSize = size * 0.46;
     final avatar = Container(
       width: size,
       height: size,
-      decoration: const BoxDecoration(gradient: AppColors.warmGradient, shape: BoxShape.circle),
-      child: Icon(Icons.auto_awesome, color: Colors.white, size: iconSize),
+      decoration: BoxDecoration(gradient: LinearGradient(colors: [c.primary, c.sand]), shape: BoxShape.circle),
+      child: Icon(Icons.auto_awesome, color: c.onPrimary, size: iconSize),
     );
     if (!pulse) return avatar;
     return PulseGlow(size: size, child: avatar);

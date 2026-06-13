@@ -33,7 +33,7 @@ if ($envContent -match 'REVENUECAT_KEY=sk_') {
 
 $keyProps = Join-Path $App "android\key.properties"
 if (-not (Test-Path $keyProps)) {
-    Write-Warning "android/key.properties not found — release will sign with debug key (not Play Store ready)"
+    Write-Warning "android/key.properties not found - release will sign with debug key (not Play Store ready)"
 }
 
 Push-Location $App

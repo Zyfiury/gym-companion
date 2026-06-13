@@ -24,17 +24,18 @@ class ProfileHeroHeader extends StatelessWidget {
     this.onAvatarTap,
   });
 
-  Color _goalColor(String goal) => switch (goal.toLowerCase()) {
-        'cut' => AppColors.hydro,
-        'bulk' => AppColors.ember,
-        _ => AppColors.volt,
+  Color _goalColor(String goal, AppColorsExtension c) => switch (goal.toLowerCase()) {
+        'cut' => c.dusk,
+        'bulk' => c.sand,
+        _ => c.primary,
       };
 
   @override
   Widget build(BuildContext context) {
     final t = context.appTheme;
+    final c = context.appColors;
     final name = displayName.isNotEmpty ? displayName : 'Athlete';
-    final goalColor = _goalColor(goalLabel);
+    final goalColor = _goalColor(goalLabel, c);
 
     return Stack(
       clipBehavior: Clip.none,
@@ -46,7 +47,7 @@ class ProfileHeroHeader extends StatelessWidget {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                AppColors.gradient.colors.first.withValues(alpha: 0.35),
+                c.dusk.withValues(alpha: 0.35),
                 Colors.transparent,
               ],
             ),
@@ -76,11 +77,11 @@ class ProfileHeroHeader extends StatelessWidget {
                             width: 26,
                             height: 26,
                             decoration: BoxDecoration(
-                              color: AppColors.accent,
+                              color: c.primary,
                               shape: BoxShape.circle,
                               border: Border.all(color: t.scaffold, width: 2),
                             ),
-                            child: const Icon(Icons.camera_alt_rounded, size: 13, color: Colors.white),
+                            child: Icon(Icons.camera_alt_rounded, size: 13, color: c.onPrimary),
                           ),
                         ),
                     ],

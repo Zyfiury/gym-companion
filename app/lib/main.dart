@@ -37,6 +37,14 @@ import 'widgets/location_permission_sheet.dart';
 import 'screens/progress_screen.dart';
 
 import 'screens/feed_screen.dart';
+import 'features/workout/rest_timer_widget.dart';
+import 'core/widgets/skeletons.dart';
+import 'models/pending_celebrations.dart';
+import 'widgets/pr_celebration_modal.dart';
+import 'widgets/goal_celebration_sheet.dart';
+import 'core/widgets/offline_banner.dart';
+import 'core/widgets/app_toast.dart';
+import 'widgets/level_up_sheet.dart';
 
 
 
@@ -86,10 +94,11 @@ class GymCompanionApp extends ConsumerWidget {
     final platformBrightness = WidgetsBinding.instance.platformDispatcher.platformBrightness;
     applySystemChrome(themeMode, platformBrightness);
 
-    return provider.ChangeNotifierProvider(
-
-      create: (_) => AppState()..init(),
-
+    return provider.MultiProvider(
+      providers: [
+        provider.ChangeNotifierProvider(create: (_) => AppState()..init()),
+        provider.ChangeNotifierProvider(create: (_) => RestTimerController()),
+      ],
       child: provider.Consumer<AppState>(
 
         builder: (_, state, __) {
@@ -107,21 +116,18 @@ class GymCompanionApp extends ConsumerWidget {
 
             themeAnimationCurve: Curves.easeInOutCubic,
 
-            home: !ReleaseConfig.isProductionReady
-                ? const ConfigErrorScreen()
-                : state.loading
-
-                ? const _Splash()
-
-                : state.session == null
-
-                    ? const LoginScreen()
-
-                    : state.user?.profileComplete != true
-
-                        ? const OnboardingScreen()
-
-                        : const MainShell(),
+            home: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 280),
+              child: !ReleaseConfig.isProductionReady
+                  ? const ConfigErrorScreen(key: ValueKey('config'))
+                  : state.loading
+                      ? const _Splash(key: ValueKey('splash'))
+                      : state.session == null
+                          ? const LoginScreen(key: ValueKey('login'))
+                          : state.user?.profileComplete != true
+                              ? const OnboardingScreen(key: ValueKey('onboarding'))
+                              : const MainShell(key: ValueKey('main')),
+            ),
 
           );
 
@@ -138,19 +144,17 @@ class GymCompanionApp extends ConsumerWidget {
 
 
 class _Splash extends StatelessWidget {
-  const _Splash();
-
-  static const _splashBg = Color(0xFF111C22);
-  static const _splashText = Color(0xFFE8F0F4);
+  const _Splash({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final c = context.appColors;
     return Scaffold(
-      backgroundColor: _splashBg,
+      backgroundColor: c.bgDeep,
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF3D7A93), Color(0xFF7FB5A0)],
+            colors: [c.dusk, c.primary],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -162,33 +166,25 @@ class _Splash extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: _splashText.withValues(alpha: 0.12),
+                  color: c.onPrimary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(AppRadius.lg),
                 ),
-                child: const Icon(Icons.auto_awesome, color: _splashText, size: 48),
+                child: Icon(Icons.auto_awesome, color: c.onPrimary, size: 48),
               ),
               const SizedBox(height: 24),
-              const Text(
+              Text(
                 'Gym Companion',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w600,
-                  color: _splashText,
-                ),
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600, color: c.onPrimary),
               ),
               const SizedBox(height: 8),
               Text(
                 'Your AI-powered fitness coach',
-                style: TextStyle(color: _splashText.withValues(alpha: 0.72)),
+                style: TextStyle(color: c.onPrimary.withValues(alpha: 0.72)),
               ),
               const SizedBox(height: 32),
-              const SizedBox(
-                width: 28,
-                height: 28,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  color: _splashText,
-                ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 48),
+                child: SkeletonCard(height: 8),
               ),
             ],
           ),
@@ -221,6 +217,8 @@ class MainShell extends ConsumerStatefulWidget {
 
 class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserver {
   bool _locationSheetShown = false;
+  PendingPrCelebration? _shownPr;
+  PendingGoalCelebration? _shownGoal;
 
   @override
   void initState() {
@@ -246,6 +244,25 @@ class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserv
   Widget build(BuildContext context) {
 
     final state = provider.Provider.of<AppState>(context);
+
+    final pr = state.pendingPrCelebration;
+    if (pr != null && pr != _shownPr) {
+      _shownPr = pr;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        PrCelebrationModal.show(context, pr);
+      });
+    }
+
+    final goalHit = state.pendingGoalCelebration;
+    if (goalHit != null && goalHit != _shownGoal) {
+      _shownGoal = goalHit;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        GoalCelebrationSheet.show(context, goalHit);
+      });
+    }
+
     if (state.shouldShowLocationPrompt && !_locationSheetShown) {
       _locationSheetShown = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -253,6 +270,25 @@ class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserv
         LocationPermissionSheet.show(context);
       });
     }
+
+    if (state.pendingLevelUp != null) {
+      final level = state.pendingLevelUp!;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        state.clearPendingLevelUp();
+        await showLevelUpSheet(context, level);
+      });
+    }
+
+    if (state.pendingXpToast != null) {
+      final toast = state.pendingXpToast!;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        state.clearPendingXpToast();
+        AppToast.success(context, toast);
+      });
+    }
+
     final themeMode = ref.watch(themeModeProvider);
     final isDark = resolveIsDark(
       themeMode,
@@ -273,6 +309,7 @@ class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserv
       body: SafeArea(
         child: Column(
           children: [
+            const OfflineBanner(),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 12, 4),
               child: Row(
@@ -320,12 +357,18 @@ class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserv
                             ),
                           ),
                   ),
-                  IconButton(
-                    onPressed: () => ref.read(themeModeProvider.notifier).toggle(),
-                    icon: Icon(
-                      isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-                      color: theme.iconMuted,
-                      size: 22,
+                  Semantics(
+                    identifier: 'theme-toggle',
+                    button: true,
+                    label: isDark ? 'Switch to light theme' : 'Switch to dark theme',
+                    child: IconButton(
+                      onPressed: () => ref.read(themeModeProvider.notifier).toggle(),
+                      icon: Icon(
+                        isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                        color: theme.iconMuted,
+                        size: 22,
+                      ),
+                      tooltip: isDark ? 'Light mode' : 'Dark mode',
                     ),
                   ),
                   Semantics(
@@ -428,5 +471,4 @@ class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserv
   }
 
 }
-
 

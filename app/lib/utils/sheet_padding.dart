@@ -16,7 +16,12 @@ EdgeInsets sheetInsets(
   );
 }
 
-/// List/scroll bottom padding above the floating nav bar and home indicator.
-double scrollBottomInset(BuildContext context, {double extra = 16}) {
+/// List/scroll bottom padding above the tab nav bar and home indicator.
+double scrollBottomInset(BuildContext context, {double extra = 88}) {
   return MediaQuery.paddingOf(context).bottom + extra;
+}
+
+/// Standard tab screen ListView padding (clears 62px nav + margin).
+EdgeInsets tabListPadding(BuildContext context) {
+  return EdgeInsets.fromLTRB(20, 4, 20, scrollBottomInset(context));
 }

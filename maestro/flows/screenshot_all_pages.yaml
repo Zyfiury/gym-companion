@@ -33,10 +33,13 @@ appId: com.gymcompanion.gym_companion
 - tapOn:
     id: "tab-workout"
 - extendedWaitUntil:
-    visible:
-      id: "workout-custom-routines"
+    visible: "WEEKLY SPLIT"
     timeout: 10000
 - takeScreenshot: 04_workout_barcode
+- scrollUntilVisible:
+    element:
+      id: "workout-custom-routines"
+    direction: DOWN
 - tapOn:
     id: "workout-custom-routines"
 - extendedWaitUntil:
@@ -56,10 +59,16 @@ appId: com.gymcompanion.gym_companion
 - tapOn:
     id: "tab-meals"
 - extendedWaitUntil:
-    visible:
-      id: "food-plan-toggle"
+    visible: ".*Log food.*"
     timeout: 10000
 - takeScreenshot: 07_meals_day
+- scrollUntilVisible:
+    element: ".*Meal plan.*"
+    direction: DOWN
+- tapOn: ".*Meal plan.*"
+- scrollUntilVisible:
+    element: "Month"
+    direction: DOWN
 - tapOn: "Week"
 - takeScreenshot: 08_meals_week
 - tapOn: "Month"
@@ -93,7 +102,7 @@ appId: com.gymcompanion.gym_companion
 - tapOn:
     id: "profile-pro-upgrade"
 - extendedWaitUntil:
-    visible: "Everything you need to hit your goals"
+    visible: "Unlock everything"
     timeout: 10000
 - takeScreenshot: 13_paywall
 - back

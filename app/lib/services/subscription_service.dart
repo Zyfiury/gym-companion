@@ -1,221 +1,106 @@
 import 'package:flutter/foundation.dart';
-
 import 'package:purchases_flutter/purchases_flutter.dart';
-
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'backend_config.dart';
 
-
-
 enum ProPlan { monthly, annual }
 
+class PaywallOfferings {
+  final String? monthlyPrice;
+  final String? annualPrice;
+  final String? trialLabel;
 
+  const PaywallOfferings({this.monthlyPrice, this.annualPrice, this.trialLabel});
+}
 
+/// RevenueCat Pro subscription - chat message quota lives in [UserData.gamification].
 class SubscriptionService {
-
-  static const _freeLimit = 10;
-
-  static const _quotaKey = 'gym_free_chat_count';
-
-  static const _quotaDateKey = 'gym_free_chat_date';
-
-
-
   static bool _initialized = false;
 
-  static int _freeMessagesToday = 0;
-
-  static String _lastMessageDate = '';
-
-
+  // Pro status cache - getCustomerInfo hits the billing API, which is slow
+  // and logs errors on devices without Play Store.
+  static bool? _cachedPro;
+  static DateTime? _cachedProAt;
+  static const _proCacheTtl = Duration(minutes: 5);
 
   static Future<void> init() async {
-
-    await _loadQuota();
-
     if (!BackendConfig.hasRevenueCat || _initialized) return;
-
     try {
-
       await Purchases.setLogLevel(kDebugMode ? LogLevel.debug : LogLevel.warn);
-
       await Purchases.configure(PurchasesConfiguration(BackendConfig.revenueCatKey!));
-
       _initialized = true;
-
     } catch (_) {}
-
   }
-
-
-
-  static Future<void> _loadQuota() async {
-
-    final prefs = await SharedPreferences.getInstance();
-
-    _lastMessageDate = prefs.getString(_quotaDateKey) ?? '';
-
-    _freeMessagesToday = prefs.getInt(_quotaKey) ?? 0;
-
-    final today = DateTime.now().toIso8601String().substring(0, 10);
-
-    if (_lastMessageDate != today) {
-
-      _lastMessageDate = today;
-
-      _freeMessagesToday = 0;
-
-      await prefs.setString(_quotaDateKey, today);
-
-      await prefs.setInt(_quotaKey, 0);
-
-    }
-
-  }
-
-
-
-  static Future<void> _saveQuota() async {
-
-    final prefs = await SharedPreferences.getInstance();
-
-    await prefs.setString(_quotaDateKey, _lastMessageDate);
-
-    await prefs.setInt(_quotaKey, _freeMessagesToday);
-
-  }
-
-
 
   static Future<void> linkUser(String userId) async {
-
     if (!BackendConfig.hasRevenueCat || !_initialized) return;
-
     try {
-
       await Purchases.logIn(userId);
-
     } catch (_) {}
-
   }
-
-
 
   static Future<bool> isPro() async {
     if (BackendConfig.devProOverride) return true;
     if (!BackendConfig.hasRevenueCat || !_initialized) return false;
 
+    final now = DateTime.now();
+    if (_cachedPro != null && _cachedProAt != null && now.difference(_cachedProAt!) < _proCacheTtl) {
+      return _cachedPro!;
+    }
+
     try {
       final info = await Purchases.getCustomerInfo();
-      return info.entitlements.active.containsKey('pro');
+      _cachedPro = info.entitlements.active.containsKey('pro');
     } catch (_) {
-      return false;
+      _cachedPro ??= false;
     }
+    _cachedProAt = now;
+    return _cachedPro!;
   }
-
-
-
-  static Future<int> freeMessagesRemaining() async {
-
-    if (await isPro()) return -1;
-
-    final today = DateTime.now().toIso8601String().substring(0, 10);
-
-    if (_lastMessageDate != today) return _freeLimit;
-
-    return (_freeLimit - _freeMessagesToday).clamp(0, _freeLimit);
-
-  }
-
-
 
   static Future<bool> purchasePro({ProPlan plan = ProPlan.monthly}) async {
-
     try {
-
       final offerings = await Purchases.getOfferings();
-
       final current = offerings.current;
-
       if (current == null) return false;
-
       final package = plan == ProPlan.annual ? current.annual : current.monthly;
-
       if (package == null) return false;
-
       await Purchases.purchasePackage(package);
-
+      _cachedPro = true;
+      _cachedProAt = DateTime.now();
       return true;
-
     } catch (_) {
-
       return false;
-
     }
-
   }
 
-
+  static Future<PaywallOfferings> loadOfferings() async {
+    if (!BackendConfig.hasRevenueCat || !_initialized) {
+      return const PaywallOfferings();
+    }
+    try {
+      final offerings = await Purchases.getOfferings();
+      final current = offerings.current;
+      if (current == null) return const PaywallOfferings();
+      final monthly = current.monthly?.storeProduct.priceString;
+      final annual = current.annual?.storeProduct.priceString;
+      String? trial;
+      final intro = current.monthly?.storeProduct.introductoryPrice;
+      if (intro != null) trial = '${intro.periodNumberOfUnits}-day free trial';
+      return PaywallOfferings(monthlyPrice: monthly, annualPrice: annual, trialLabel: trial);
+    } catch (_) {
+      return const PaywallOfferings();
+    }
+  }
 
   static Future<bool> restorePurchases() async {
-
     try {
-
       final info = await Purchases.restorePurchases();
-
-      return info.entitlements.active.containsKey('pro');
-
+      _cachedPro = info.entitlements.active.containsKey('pro');
+      _cachedProAt = DateTime.now();
+      return _cachedPro!;
     } catch (_) {
-
       return false;
-
     }
-
   }
-
-
-
-  static Future<bool> canSendChatMessage() async {
-
-    if (await isPro()) return true;
-
-    final today = DateTime.now().toIso8601String().substring(0, 10);
-
-    if (_lastMessageDate != today) {
-
-      _lastMessageDate = today;
-
-      _freeMessagesToday = 0;
-
-      await _saveQuota();
-
-    }
-
-    return _freeMessagesToday < _freeLimit;
-
-  }
-
-
-
-  static void recordChatMessage() {
-
-    final today = DateTime.now().toIso8601String().substring(0, 10);
-
-    if (_lastMessageDate != today) {
-
-      _lastMessageDate = today;
-
-      _freeMessagesToday = 0;
-
-    }
-
-    _freeMessagesToday++;
-
-    _saveQuota();
-
-  }
-
 }
-
-

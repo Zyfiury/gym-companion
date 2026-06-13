@@ -83,7 +83,7 @@ class MealVarietyService {
   static Meal _toMeal(_MealTemplate t, String mealType, UserData user) {
     var desc = t.description;
     final hint = HealthSafetyService.periodNutritionHint(user);
-    if (hint != null) desc = '$desc — $hint';
+    if (hint != null) desc = '$desc - $hint';
     return Meal(
       mealType: mealType,
       name: t.name,
@@ -98,7 +98,7 @@ class MealVarietyService {
         'Gather: ${t.ingredients.take(3).join(', ')}',
         'Prep and season ingredients',
         'Cook ${t.name} until done',
-        'Plate up — 1 serving (~${t.macros['calories']} kcal)',
+        'Plate up - 1 serving (~${t.macros['calories']} kcal)',
       ];
 
   static List<String> ingredientsFor(Meal meal) {

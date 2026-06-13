@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'app_colors_extension.dart';
 import 'app_spacing.dart';
 
-/// Semantic theme colors for widgets — maps to [AppColorsExtension].
+/// Semantic theme colors for widgets - maps to [AppColorsExtension].
 class AppThemeColors {
   const AppThemeColors(this._c);
 

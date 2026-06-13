@@ -58,7 +58,7 @@ class _ShimmerFill extends StatelessWidget {
             gradient: LinearGradient(
               colors: [
                 ObsidianTokens.heroAccent.withValues(alpha: 0.0),
-                Colors.white.withValues(alpha: 0.35),
+                ObsidianTokens.textOnAccent.withValues(alpha: 0.35),
                 ObsidianTokens.heroAccent.withValues(alpha: 0.0),
               ],
               stops: const [0.0, 0.5, 1.0],
@@ -66,7 +66,7 @@ class _ShimmerFill extends StatelessWidget {
           ),
         )
             .animate(onPlay: (c) => c.repeat())
-            .shimmer(duration: const Duration(milliseconds: 2200), color: Colors.white.withValues(alpha: 0.25)),
+            .shimmer(duration: const Duration(milliseconds: 2200), color: ObsidianTokens.textOnAccent.withValues(alpha: 0.25)),
       ),
     );
   }

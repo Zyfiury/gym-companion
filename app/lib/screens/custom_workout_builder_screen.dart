@@ -5,6 +5,7 @@ import '../providers/app_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/empty_state_card.dart';
 import '../widgets/premium_ui.dart';
+import '../widgets/page_transitions.dart';
 
 class CustomWorkoutBuilderScreen extends StatefulWidget {
   final CustomWorkout? existing;
@@ -77,7 +78,7 @@ class _CustomWorkoutBuilderScreenState extends State<CustomWorkoutBuilderScreen>
           Semantics(
             identifier: 'custom-workout-save',
             button: true,
-            child: TextButton(onPressed: _save, child: const Text('Save', style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700))),
+            child: TextButton(onPressed: _save, child: Text('Save', style: TextStyle(color: context.appColors.primary, fontWeight: FontWeight.w700))),
           ),
         ],
       ),
@@ -190,6 +191,7 @@ class CustomWorkoutListScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.appTheme;
+    final c = context.appColors;
     final state = context.watch<AppState>();
     final workouts = state.user?.customWorkouts ?? [];
 
@@ -204,8 +206,8 @@ class CustomWorkoutListScreen extends StatelessWidget {
         identifier: 'custom-workout-create',
         button: true,
         child: FloatingActionButton(
-          backgroundColor: AppColors.accent,
-          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CustomWorkoutBuilderScreen())),
+          backgroundColor: c.primary,
+          onPressed: () => pushPremium(context, const CustomWorkoutBuilderScreen()),
           child: const Icon(Icons.add),
         ),
       ),
@@ -216,7 +218,7 @@ class CustomWorkoutListScreen extends StatelessWidget {
                 headline: 'Build your first routine',
                 subtext: 'Create a custom workout and use it as today\'s session',
                 buttonLabel: 'New routine',
-                onAction: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CustomWorkoutBuilderScreen())),
+                onAction: () => pushPremium(context, const CustomWorkoutBuilderScreen()),
               ),
             )
           : ListView.builder(
@@ -228,7 +230,7 @@ class CustomWorkoutListScreen extends StatelessWidget {
                   identifier: 'custom-workout-item',
                   child: AppCard(
                     padding: const EdgeInsets.all(16),
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CustomWorkoutBuilderScreen(existing: w))),
+                    onTap: () => pushPremium(context, CustomWorkoutBuilderScreen(existing: w)),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

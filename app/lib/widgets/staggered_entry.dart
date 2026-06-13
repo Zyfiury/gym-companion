@@ -102,13 +102,13 @@ class _ChatBubbleEntryState extends State<ChatBubbleEntry> with SingleTickerProv
   }
 }
 
-/// Soft glow ring — plays once on appear, does not loop.
+/// Soft glow ring - plays once on appear, does not loop.
 class PulseGlow extends StatefulWidget {
   final Widget child;
-  final Color color;
+  final Color? color;
   final double size;
 
-  const PulseGlow({super.key, required this.child, this.color = AppColors.accent, this.size = 56});
+  const PulseGlow({super.key, required this.child, this.color, this.size = 56});
 
   @override
   State<PulseGlow> createState() => _PulseGlowState();
@@ -132,6 +132,7 @@ class _PulseGlowState extends State<PulseGlow> with SingleTickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
+    final glowColor = widget.color ?? context.appColors.primary;
     return AnimatedBuilder(
       animation: _ctrl,
       builder: (_, child) {
@@ -144,7 +145,7 @@ class _PulseGlowState extends State<PulseGlow> with SingleTickerProviderStateMix
               height: widget.size + 16 + t * 12,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: widget.color.withValues(alpha: 0.12 * (1 - t)),
+                color: glowColor.withValues(alpha: 0.12 * (1 - t)),
               ),
             ),
             Container(
@@ -152,7 +153,7 @@ class _PulseGlowState extends State<PulseGlow> with SingleTickerProviderStateMix
               height: widget.size + 8,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: widget.color.withValues(alpha: 0.08),
+                color: glowColor.withValues(alpha: 0.08),
               ),
             ),
             child!,
@@ -166,10 +167,10 @@ class _PulseGlowState extends State<PulseGlow> with SingleTickerProviderStateMix
 
 /// Three bouncing dots for typing indicator.
 class BouncingDots extends StatefulWidget {
-  final Color color;
+  final Color? color;
   final double size;
 
-  const BouncingDots({super.key, this.color = AppColors.accent, this.size = 7});
+  const BouncingDots({super.key, this.color, this.size = 7});
 
   @override
   State<BouncingDots> createState() => _BouncingDotsState();
@@ -200,6 +201,7 @@ class _BouncingDotsState extends State<BouncingDots> with TickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
+    final dotColor = widget.color ?? context.appColors.primary;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: List.generate(3, (i) {
@@ -213,7 +215,7 @@ class _BouncingDotsState extends State<BouncingDots> with TickerProviderStateMix
             margin: EdgeInsets.only(right: i < 2 ? 5 : 0),
             width: widget.size,
             height: widget.size,
-            decoration: BoxDecoration(color: widget.color.withValues(alpha: 0.5 + i * 0.15), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: dotColor.withValues(alpha: 0.5 + i * 0.15), shape: BoxShape.circle),
           ),
         );
       }),
@@ -299,15 +301,13 @@ class _AnimatedMacroRingState extends State<AnimatedMacroRing> with TickerProvid
           builder: (_, child) => Stack(
             alignment: Alignment.center,
             children: [
-              SizedBox(
-                width: widget.size,
-                height: widget.size,
-                child: CircularProgressIndicator(
-                  value: _anim.value,
-                  strokeWidth: 9,
-                  backgroundColor: AppColors.slate600,
+              CustomPaint(
+                size: Size(widget.size, widget.size),
+                painter: _MacroRingPainter(
+                  progress: _anim.value,
                   color: widget.color,
-                  strokeCap: StrokeCap.round,
+                  trackColor: context.appColors.surface3,
+                  strokeWidth: 9,
                 ),
               ),
               child!,
@@ -316,7 +316,10 @@ class _AnimatedMacroRingState extends State<AnimatedMacroRing> with TickerProvid
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(widget.value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500, color: t.textPrimary, height: 1)),
+              _AnimatedRingValue(
+                value: widget.value,
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500, color: t.textPrimary, height: 1),
+              ),
               Text(widget.label.toUpperCase(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 0.88, color: t.textMuted)),
             ],
           ),
@@ -326,7 +329,7 @@ class _AnimatedMacroRingState extends State<AnimatedMacroRing> with TickerProvid
   }
 }
 
-/// Soft screen backdrop — no hard shapes, just a whisper of colour at the top.
+/// Soft screen backdrop - no hard shapes, just a whisper of colour at the top.
 class AmbientBackground extends StatelessWidget {
   final Widget child;
 
@@ -476,4 +479,92 @@ class _PressableScaleState extends State<PressableScale> with SingleTickerProvid
       child: ScaleTransition(scale: _scale, child: widget.child),
     );
   }
+}
+
+class _AnimatedRingValue extends StatefulWidget {
+  final String value;
+  final TextStyle style;
+
+  const _AnimatedRingValue({required this.value, required this.style});
+
+  @override
+  State<_AnimatedRingValue> createState() => _AnimatedRingValueState();
+}
+
+class _AnimatedRingValueState extends State<_AnimatedRingValue> {
+  int? _numeric;
+  int _last = 0;
+
+  int? _parse(String s) => int.tryParse(s.replaceAll(RegExp(r'[^0-9]'), ''));
+
+  @override
+  void initState() {
+    super.initState();
+    _numeric = _parse(widget.value);
+    _last = _numeric ?? 0;
+  }
+
+  @override
+  void didUpdateWidget(_AnimatedRingValue old) {
+    super.didUpdateWidget(old);
+    final n = _parse(widget.value);
+    if (n != null && n != _last) _last = n;
+    _numeric = n;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final n = _numeric;
+    if (n == null) return Text(widget.value, style: widget.style);
+    return TweenAnimationBuilder<int>(
+      tween: IntTween(begin: _last, end: n),
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOutCubic,
+      builder: (_, v, __) => Text('$v', style: widget.style),
+    );
+  }
+}
+
+class _MacroRingPainter extends CustomPainter {
+  final double progress;
+  final Color color;
+  final Color trackColor;
+  final double strokeWidth;
+
+  _MacroRingPainter({
+    required this.progress,
+    required this.color,
+    required this.trackColor,
+    required this.strokeWidth,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width - strokeWidth) / 2;
+    final track = Paint()
+      ..color = trackColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+    final arc = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+    canvas.drawCircle(center, radius, track);
+    if (progress > 0) {
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        -3.14159 / 2,
+        2 * 3.14159 * progress.clamp(0.0, 1.0),
+        false,
+        arc,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_MacroRingPainter old) =>
+      old.progress != progress || old.color != color || old.trackColor != trackColor;
 }

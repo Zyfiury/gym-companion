@@ -33,6 +33,7 @@ class UserAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.appTheme;
+    final c = context.appColors;
     final initials = _initials(name.isNotEmpty ? name : 'A');
     final size = radius * 2;
 
@@ -48,7 +49,7 @@ class UserAvatar extends StatelessWidget {
         width: size,
         height: size,
         decoration: BoxDecoration(
-          gradient: AppColors.warmGradient,
+          gradient: LinearGradient(colors: [c.primary, c.sand]),
           shape: BoxShape.circle,
           border: Border.all(color: t.borderSubtle.withValues(alpha: 0.5)),
         ),
@@ -58,7 +59,7 @@ class UserAvatar extends StatelessWidget {
           style: GoogleFonts.dmSans(
             fontSize: radius * 0.75,
             fontWeight: FontWeight.w700,
-            color: Colors.white,
+            color: c.onPrimary,
           ),
         ),
       );
@@ -66,13 +67,13 @@ class UserAvatar extends StatelessWidget {
 
     return CircleAvatar(
       radius: radius,
-      backgroundColor: AppColors.accent.withValues(alpha: 0.15),
+      backgroundColor: c.primary.withValues(alpha: 0.15),
       child: Text(
         initials[0],
         style: TextStyle(
           fontSize: radius * 0.7,
           fontWeight: FontWeight.w700,
-          color: AppColors.accent,
+          color: c.primary,
         ),
       ),
     );

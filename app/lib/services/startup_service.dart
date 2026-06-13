@@ -13,7 +13,7 @@ import 'subscription_service.dart';
 import 'supabase_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Heavy SDK setup — safe to run after the first frame.
+/// Heavy SDK setup - safe to run after the first frame.
 class StartupService {
   static bool _deferredDone = false;
 
