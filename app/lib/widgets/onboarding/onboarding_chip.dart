@@ -47,6 +47,7 @@ class _OnboardingChipState extends State<OnboardingChip> with SingleTickerProvid
 
   @override
   Widget build(BuildContext context) {
+    final obs = context.obsidian;
     final chip = GestureDetector(
       onTap: widget.onTap,
       child: AnimatedBuilder(
@@ -63,10 +64,10 @@ class _OnboardingChipState extends State<OnboardingChip> with SingleTickerProvid
             vertical: ObsidianTokens.spacingSm,
           ),
           decoration: BoxDecoration(
-            color: widget.selected ? ObsidianTokens.heroAccent : ObsidianTokens.surfaceMuted,
+            color: widget.selected ? obs.heroAccent : obs.surfaceMuted,
             borderRadius: BorderRadius.circular(ObsidianTokens.radiusPill),
             border: Border.all(
-              color: widget.selected ? ObsidianTokens.heroAccent : ObsidianTokens.heroAccent.withValues(alpha: 0.25),
+              color: widget.selected ? obs.heroAccent : obs.heroAccent.withValues(alpha: 0.25),
             ),
           ),
           child: Text(
@@ -74,7 +75,7 @@ class _OnboardingChipState extends State<OnboardingChip> with SingleTickerProvid
             style: ObsidianTypography.body(
               size: 13,
               weight: FontWeight.w600,
-              color: widget.selected ? ObsidianTokens.textOnAccent : ObsidianTokens.textSecondary,
+              color: widget.selected ? obs.textOnAccent : obs.textSecondary,
             ),
           ),
         ),

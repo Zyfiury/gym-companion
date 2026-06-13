@@ -40,7 +40,6 @@ import '../services/user_md_sync_service.dart';
 import '../services/vision_calorie_service.dart';
 import '../services/health_service.dart';
 import '../services/activity_calorie_service.dart';
-import 'package:health/health.dart';
 import '../services/tdee_service.dart';
 import '../utils/personal_record_helper.dart';
 import '../utils/weight_history.dart';
@@ -727,43 +726,27 @@ class AppState extends ChangeNotifier {
     if (user == null) return 'Sign in first';
 
     try {
-      await HealthService.ensureConfigured();
+      final result = await HealthService.connect();
+      healthConnected = result.success;
 
-      if (defaultTargetPlatform == TargetPlatform.android) {
-        final status = await HealthService.androidSdkStatus();
-        if (status == HealthConnectSdkStatus.sdkUnavailable ||
-            status == HealthConnectSdkStatus.sdkUnavailableProviderUpdateRequired) {
-          await HealthService.installHealthConnect();
-          return 'Install or update Health Connect from the Play Store, then tap Connect again.';
-        }
-        if (status != HealthConnectSdkStatus.sdkAvailable) {
-          return 'Health Connect is not available on this device.';
-        }
-      }
-
-      final granted = await HealthService.requestPermissions();
-      healthConnected = granted;
-
-      if (granted) {
-        final steps = await HealthService.getTodaySteps();
-        user!.steps = steps.toDouble();
+      if (result.success) {
+        user!.steps = result.steps.toDouble();
         if (userId != null) await _saveUser(userId!);
-        notifyListeners();
-        return steps > 0 ? '✓ Connected - $steps steps today' : '✓ Connected - steps will sync as you move';
+        _startHealthRefreshTimer();
+      } else {
+        _healthRefreshTimer?.cancel();
       }
 
       notifyListeners();
-      if (defaultTargetPlatform == TargetPlatform.iOS) {
-        return 'Permission denied. Open Settings → Health → Data Access → Gym Companion → allow Steps.';
-      }
-      return 'Permission denied. Open Health Connect → App permissions → Gym Companion → allow Steps.';
-    } catch (_) {
+      return result.message;
+    } catch (e, st) {
+      debugPrint('connectHealth failed: $e\n$st');
       healthConnected = false;
       notifyListeners();
       if (defaultTargetPlatform == TargetPlatform.iOS) {
         return 'Could not connect to Apple Health. Check Health permissions in Settings.';
       }
-      return 'Could not connect. Try installing Health Connect and try again.';
+      return 'Could not connect. Update Health Connect from the Play Store and try again.';
     }
   }
 

@@ -15,6 +15,7 @@ class WeightLineChart extends StatelessWidget {
     final t = context.appTheme;
     if (history.isEmpty) {
       return AppEmptyState(
+        compact: true,
         icon: Icons.monitor_weight_outlined,
         heading: 'No weigh-ins yet',
         body: 'Log your first weight to start seeing your trend',

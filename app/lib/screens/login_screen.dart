@@ -384,7 +384,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                           const SizedBox(height: 4),
                                           Text(
                                             'Accept the Terms and Privacy Policy to continue',
-                                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.redAccent),
+                                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: context.appColors.error),
                                           ),
                                         ],
                                       ],
@@ -398,7 +398,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                         ),
                                       if (_error != null) ...[
                                         const SizedBox(height: 4),
-                                        _MessageBanner(text: _error!, color: Colors.redAccent),
+                                        _MessageBanner(text: _error!, color: context.appColors.error),
                                       ],
                                       if (_info != null) ...[
                                         const SizedBox(height: 4),

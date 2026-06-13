@@ -267,7 +267,43 @@ class _MealPreview extends StatelessWidget {
     final t = context.appTheme;
     final c = context.appColors;
     final meals = context.watch<AppState>().user!.weeklyPlan.meals;
-    if (meals.isEmpty) return const SizedBox.shrink();
+
+    if (meals.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SectionLabel('Next meal'),
+          const SizedBox(height: 10),
+          AppCard(
+            onTap: () => context.read<AppState>().setTab(2),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: c.mint.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                  ),
+                  child: Icon(Icons.restaurant_outlined, color: c.mint, size: 22),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('No meals planned', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: t.textPrimary)),
+                      Text('Set up your plan in the Food tab', style: TextStyle(fontSize: 12, color: t.textSecondary)),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: t.textMuted, size: 20),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
 
     final hour = DateTime.now().hour;
     final mealType = hour < 11 ? 'Breakfast' : hour < 15 ? 'Lunch' : 'Dinner';

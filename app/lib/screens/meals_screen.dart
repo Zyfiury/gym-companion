@@ -9,6 +9,7 @@ import '../services/places_service.dart';
 import '../services/shopping_list_service.dart';
 import '../services/store_service.dart';
 import '../services/youtube_service.dart';
+import '../core/widgets/app_empty_state.dart';
 import '../core/widgets/app_toast.dart';
 import '../core/widgets/skeletons.dart';
 import '../core/widgets/tab_load_gate.dart';
@@ -502,6 +503,20 @@ class _MealsScreenState extends State<MealsScreen> {
                       },
                     ),
                   ],
+                ),
+              ),
+            ),
+          ] else if (viewMeals.isEmpty) ...[
+            StaggeredEntry(
+              index: 3,
+              child: AppCard(
+                child: AppEmptyState(
+                  compact: true,
+                  icon: Icons.restaurant_menu_outlined,
+                  heading: 'No meals planned',
+                  body: 'Ask your coach for a meal plan or swap meals in your weekly plan',
+                  ctaLabel: 'Ask coach',
+                  onCta: () => context.read<AppState>().setTab(4),
                 ),
               ),
             ),

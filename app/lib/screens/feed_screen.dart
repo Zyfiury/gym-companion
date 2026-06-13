@@ -8,6 +8,7 @@ import '../utils/pro_gate.dart';
 import '../utils/sheet_padding.dart';
 import '../core/widgets/app_empty_state.dart';
 import '../core/widgets/skeletons.dart';
+import '../core/widgets/tab_load_gate.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/feed_compose_sheet.dart';
 import '../widgets/premium_ui.dart';
@@ -51,7 +52,6 @@ class FeedScreen extends StatefulWidget {
 
 class _FeedScreenState extends State<FeedScreen> {
   String filter = 'all';
-  bool _initialLoad = true;
 
   @override
   void initState() {
@@ -59,12 +59,33 @@ class _FeedScreenState extends State<FeedScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AppState>().refreshLeaderboard();
     });
-    Future.delayed(const Duration(milliseconds: 400), () {
-      if (mounted) setState(() => _initialLoad = false);
-    });
   }
 
-  Future<void> _refresh() async {
+  @override
+  Widget build(BuildContext context) {
+    return TabLoadGate(
+      skeleton: ListView(
+        padding: tabListPadding(context),
+        children: const [
+          SkeletonCard(),
+          SizedBox(height: AppSpacing.listGap),
+          SkeletonFeedPost(),
+          SkeletonFeedPost(),
+          SkeletonFeedPost(),
+        ],
+      ),
+      child: _FeedBody(filter: filter, onFilterChanged: (f) => setState(() => filter = f)),
+    );
+  }
+}
+
+class _FeedBody extends StatelessWidget {
+  final String filter;
+  final ValueChanged<String> onFilterChanged;
+
+  const _FeedBody({required this.filter, required this.onFilterChanged});
+
+  Future<void> _refresh(BuildContext context) async {
     final state = context.read<AppState>();
     await Future.wait([
       state.refreshFeed(),
@@ -85,78 +106,79 @@ class _FeedScreenState extends State<FeedScreen> {
     final leaderboard = state.leaderboard.take(10).toList();
 
     return AmbientBackground(
-          child: RefreshIndicator(
-          onRefresh: _refresh,
-          color: c.primary,
-          child: ListView(
-            padding: tabListPadding(context),
-            physics: const AlwaysScrollableScrollPhysics(),
-            children: [
-              StaggeredEntry(
-                index: 0,
-                child: AppCard(
-                  child: Semantics(
-                    container: true,
-                    explicitChildNodes: true,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Semantics(
-                              identifier: 'feed-title',
-                              label: 'Feed',
-                              child: Text('Community', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: t.textSecondary)),
+      child: RefreshIndicator(
+        onRefresh: () => _refresh(context),
+        color: c.primary,
+        child: ListView(
+          padding: tabListPadding(context),
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            StaggeredEntry(
+              index: 0,
+              child: AppCard(
+                child: Semantics(
+                  container: true,
+                  explicitChildNodes: true,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Semantics(
+                            identifier: 'feed-title',
+                            label: 'Feed',
+                            child: Text('Community', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: t.textSecondary)),
+                          ),
+                          const Spacer(),
+                          Semantics(
+                            identifier: 'feed-create-btn',
+                            button: true,
+                            child: IconButton(
+                              onPressed: () => showFeedComposeSheet(context),
+                              icon: Icon(Icons.edit_outlined, color: c.primary, size: 22),
+                              tooltip: 'Create post',
                             ),
-                            const Spacer(),
-                            Semantics(
-                              identifier: 'feed-create-btn',
-                              button: true,
-                              child: IconButton(
-                                onPressed: () => showFeedComposeSheet(context),
-                                icon: Icon(Icons.edit_outlined, color: c.primary, size: 22),
-                                tooltip: 'Create post',
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            SegmentedButton<String>(
-                              segments: const [
-                                ButtonSegment(value: 'all', label: Text('Public', style: TextStyle(fontSize: 11))),
-                                ButtonSegment(value: 'mine', label: Text('My Posts', style: TextStyle(fontSize: 11))),
-                              ],
-                              selected: {filter},
-                              onSelectionChanged: (s) => setState(() => filter = s.first),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-                        if (_initialLoad)
-                          const Column(children: [SkeletonFeedPost(), SkeletonFeedPost(), SkeletonFeedPost()])
-                        else if (posts.isEmpty)
-                          AppEmptyState(
-                            icon: Icons.forum_outlined,
-                            heading: 'Nothing here yet',
-                            body: filter == 'mine'
-                                ? 'Share a PR, meal, or motivation tip to earn XP'
-                                : 'Be the first to post today',
-                            ctaLabel: 'Share something',
-                            onCta: () => showFeedComposeSheet(context),
-                          )
-                        else
-                          ...posts.asMap().entries.map((entry) {
-                            final i = entry.key;
-                            final p = entry.value;
-                            final likes = List<String>.from(p['likes'] as List? ?? []);
-                            final liked = likes.contains(uid);
-                            final isMe = p['authorId'] == uid;
-                            final postType = p['postType'] as String? ?? 'motivation';
-                            final caption = p['caption'] as String?;
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 10),
+                          ),
+                          const SizedBox(width: 4),
+                          SegmentedButton<String>(
+                            segments: const [
+                              ButtonSegment(value: 'all', label: Text('Public', style: TextStyle(fontSize: 11))),
+                              ButtonSegment(value: 'mine', label: Text('My Posts', style: TextStyle(fontSize: 11))),
+                            ],
+                            selected: {filter},
+                            onSelectionChanged: (s) => onFilterChanged(s.first),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.listGap),
+                      if (posts.isEmpty)
+                        AppEmptyState(
+                          compact: true,
+                          icon: Icons.forum_outlined,
+                          heading: 'Nothing here yet',
+                          body: filter == 'mine'
+                              ? 'Share a PR, meal, or motivation tip to earn XP'
+                              : 'Be the first to post today',
+                          ctaLabel: 'Share something',
+                          onCta: () => showFeedComposeSheet(context),
+                        )
+                      else
+                        ...posts.asMap().entries.map((entry) {
+                          final i = entry.key;
+                          final p = entry.value;
+                          final likes = List<String>.from(p['likes'] as List? ?? []);
+                          final liked = likes.contains(uid);
+                          final isMe = p['authorId'] == uid;
+                          final postType = p['postType'] as String? ?? 'motivation';
+                          final caption = p['caption'] as String?;
+                          final likeLabel = liked ? 'Unlike, ${likes.length} likes' : 'Like, ${likes.length} likes';
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Container(
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
                                 color: t.elevated,
-                                borderRadius: BorderRadius.circular(14),
+                                borderRadius: BorderRadius.circular(AppRadius.card),
                                 border: Border.all(color: t.borderSubtle),
                               ),
                               child: Column(
@@ -180,7 +202,7 @@ class _FeedScreenState extends State<FeedScreen> {
                                           ],
                                         ),
                                       ),
-                                      Icon(_postIcon(postType), size: 16, color: context.appColors.primary),
+                                      Icon(_postIcon(postType), size: 16, color: c.primary),
                                     ],
                                   ),
                                   const SizedBox(height: 8),
@@ -197,6 +219,7 @@ class _FeedScreenState extends State<FeedScreen> {
                                   Semantics(
                                     identifier: 'like-${p['id']}',
                                     button: true,
+                                    label: likeLabel,
                                     child: InkWell(
                                       onTap: () => state.toggleFeedLike('${p['id']}'),
                                       child: Text('${liked ? '❤️' : '🤍'} ${likes.length}', style: TextStyle(fontSize: 12, color: t.textMuted)),
@@ -204,85 +227,86 @@ class _FeedScreenState extends State<FeedScreen> {
                                   ),
                                 ],
                               ),
-                            );
-                          }),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              StaggeredEntry(
-                index: 1,
-                child: AppCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.emoji_events, color: Colors.amber, size: 20),
-                          const SizedBox(width: 8),
-                          Text('Leaderboard', style: TextStyle(fontWeight: FontWeight.w700, color: t.textPrimary)),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      FutureBuilder<bool>(
-                        future: SubscriptionService.isPro(),
-                        builder: (ctx, snap) {
-                          final isPro = snap.data ?? false;
-                          if (leaderboard.isEmpty) {
-                            return _LeaderRow(
-                              rank: 1,
-                              name: state.displayName ?? 'You',
-                              xp: state.user?.gamification['xp'] ?? 0,
-                              highlight: true,
-                            );
-                          }
-                          return Column(
-                            children: [
-                              for (var i = 0; i < leaderboard.length; i++)
-                                _LeaderRow(
-                                  rank: i + 1,
-                                  name: '${leaderboard[i]['displayName']}',
-                                  xp: leaderboard[i]['xp'] as int? ?? 0,
-                                  highlight: leaderboard[i]['userId'] == uid,
-                                  locked: i >= 1 && !isPro,
-                                  onTap: i >= 1 && !isPro
-                                      ? () => ProGate.check(context, feature: 'leaderboard', triggerSource: 'leaderboard')
-                                      : null,
-                                ),
-                            ],
+                            ),
                           );
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                      Theme(
-                        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                        child: ExpansionTile(
-                          tilePadding: EdgeInsets.zero,
-                          childrenPadding: const EdgeInsets.only(bottom: 4),
-                          title: Text('How do I earn XP?', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: t.textSecondary)),
-                          children: _xpRules
-                              .map((rule) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 6),
-                                    child: Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text('• ', style: TextStyle(color: context.appColors.primary, fontWeight: FontWeight.w700)),
-                                        Expanded(child: Text(rule, style: TextStyle(fontSize: 12, color: t.textSecondary))),
-                                      ],
-                                    ),
-                                  ))
-                              .toList(),
-                        ),
-                      ),
+                        }),
                     ],
                   ),
                 ),
               ),
-            ],
-          ),
-          ),
+            ),
+            const SizedBox(height: AppSpacing.listGap),
+            StaggeredEntry(
+              index: 1,
+              child: AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.emoji_events, color: c.sand, size: 20),
+                        const SizedBox(width: 8),
+                        Text('Leaderboard', style: TextStyle(fontWeight: FontWeight.w700, color: t.textPrimary)),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    FutureBuilder<bool>(
+                      future: SubscriptionService.isPro(),
+                      builder: (ctx, snap) {
+                        final isPro = snap.data ?? false;
+                        if (leaderboard.isEmpty) {
+                          return _LeaderRow(
+                            rank: 1,
+                            name: state.displayName ?? 'You',
+                            xp: state.user?.gamification['xp'] ?? 0,
+                            highlight: true,
+                          );
+                        }
+                        return Column(
+                          children: [
+                            for (var i = 0; i < leaderboard.length; i++)
+                              _LeaderRow(
+                                rank: i + 1,
+                                name: '${leaderboard[i]['displayName']}',
+                                xp: leaderboard[i]['xp'] as int? ?? 0,
+                                highlight: leaderboard[i]['userId'] == uid,
+                                locked: i >= 1 && !isPro,
+                                onTap: i >= 1 && !isPro
+                                    ? () => ProGate.check(context, feature: 'leaderboard', triggerSource: 'leaderboard')
+                                    : null,
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    Theme(
+                      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                      child: ExpansionTile(
+                        tilePadding: EdgeInsets.zero,
+                        childrenPadding: const EdgeInsets.only(bottom: 4),
+                        title: Text('How do I earn XP?', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: t.textSecondary)),
+                        children: _xpRules
+                            .map((rule) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 6),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text('• ', style: TextStyle(color: c.primary, fontWeight: FontWeight.w700)),
+                                      Expanded(child: Text(rule, style: TextStyle(fontSize: 12, color: t.textSecondary))),
+                                    ],
+                                  ),
+                                ))
+                            .toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

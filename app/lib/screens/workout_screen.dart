@@ -95,9 +95,13 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           children: [
             StaggeredEntry(
               index: 0,
-              child: AppCard(
-                onTap: () => pushPremium(context, WorkoutDetailScreen(workout: todayW)),
-                child: Column(
+              child: Semantics(
+                identifier: 'workout-today-card',
+                button: true,
+                label: 'Today\'s workout: ${todayW.focus}',
+                child: AppCard(
+                  onTap: () => pushPremium(context, WorkoutDetailScreen(workout: todayW)),
+                  child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
@@ -155,6 +159,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                   ],
                 ),
               ),
+            ),
             ),
             const SizedBox(height: 14),
             const StaggeredEntry(index: 1, child: NextSessionCard()),

@@ -209,18 +209,25 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   Row(
                     children: [
                       Expanded(
-                        child: TextField(
-                          controller: _weightCtrl,
-                          focusNode: _weightFocus,
-                          keyboardType: TextInputType.number,
-                          style: TextStyle(color: t.textPrimary),
-                          decoration: InputDecoration(hintText: 'Log weight (kg)', hintStyle: TextStyle(color: t.textMuted)),
+                        child: Semantics(
+                          identifier: 'progress-weight-field',
+                          child: TextField(
+                            controller: _weightCtrl,
+                            focusNode: _weightFocus,
+                            keyboardType: TextInputType.number,
+                            style: TextStyle(color: t.textPrimary),
+                            decoration: InputDecoration(hintText: 'Log weight (kg)', hintStyle: TextStyle(color: t.textMuted)),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 10),
-                      FilledButton(
-                        style: FilledButton.styleFrom(backgroundColor: c.primary, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14)),
-                        onPressed: () async {
+                      Semantics(
+                        identifier: 'progress-log-weight',
+                        button: true,
+                        label: 'Log weight',
+                        child: FilledButton(
+                          style: FilledButton.styleFrom(backgroundColor: c.primary, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14)),
+                          onPressed: () async {
                           final v = double.tryParse(_weightCtrl.text);
                           if (v == null) return;
                           HapticFeedback.lightImpact();
@@ -231,6 +238,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                         },
                         child: const Text('Log weight'),
                       ),
+                    ),
                     ],
                   ),
                 ],
@@ -303,6 +311,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   const SizedBox(height: 8),
                   if (topRecords.isEmpty)
                     AppEmptyState(
+                      compact: true,
                       icon: Icons.emoji_events_outlined,
                       heading: 'No personal records yet',
                       body: 'Complete a workout to start tracking PRs',

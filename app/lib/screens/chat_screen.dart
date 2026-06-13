@@ -41,15 +41,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   String _voiceText = '';
   int _lastMsgCount = 0;
   bool _lastTyping = false;
-  bool _historyReady = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    Future.delayed(const Duration(milliseconds: 350), () {
-      if (mounted) setState(() => _historyReady = true);
-    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) context.read<AppState>().ensureCoachDailyOpener();
     });
@@ -148,7 +144,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             const SizedBox(height: 16),
           ],
           Expanded(
-            child: !_historyReady
+            child: state.loading
                 ? Padding(
                     padding: EdgeInsets.fromLTRB(widget.embedded ? 0 : 20, 12, widget.embedded ? 0 : 20, 8),
                     child: const Column(

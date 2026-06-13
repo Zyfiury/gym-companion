@@ -1,7 +1,7 @@
 name: gym_companion
 description: AI-powered gym, nutrition and budget companion.
 publish_to: 'none'
-version: 1.0.5+11
+version: 1.0.5+14
 
 environment:
   sdk: ^3.11.5

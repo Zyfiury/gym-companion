@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:health/health.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/app_state.dart';
@@ -50,12 +49,9 @@ class _HealthConnectBodyState extends State<_HealthConnectBody> {
 
   Future<void> _checkAndroidStatus() async {
     if (!Platform.isAndroid) return;
-    final status = await HealthService.androidSdkStatus();
+    final needsInstall = await HealthService.needsHealthConnectInstall();
     if (!mounted) return;
-    setState(() {
-      _needsInstall = status == HealthConnectSdkStatus.sdkUnavailable ||
-          status == HealthConnectSdkStatus.sdkUnavailableProviderUpdateRequired;
-    });
+    setState(() => _needsInstall = needsInstall);
   }
 
   Future<void> _install() async {
